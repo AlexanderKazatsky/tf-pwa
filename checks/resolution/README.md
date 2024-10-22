@@ -16,12 +16,13 @@ This is the toy distribution.
 The detector model, the reconstructed value is the truch value plus a gauss
 random number.
 
-$$ m' = m + \delta ,\ \delta \sim \frac{1}{\sqrt{2\pi}\sigma} \exp(-\frac{(\delta-\mu)^2}{2\sigma^2})$$
+$$ m' = m + \delta ,\ \delta \sim \frac{1}{\sqrt{2\pi}\sigma}
+\exp(-\frac{(\delta-\mu)^2}{2\sigma^2})$$
 
 There is also a simple linear efficency with a mass range cut for reconstucted
 value.
 
-$$ \epsilon(m, m') = m \theta(m'-m_{min}) \theta(m_{max}-m') ,$$
+$$ \epsilon(m, m') = m \theta(m'-m*{min}) \theta(m*{max}-m') ,$$
 
 $\theta(x)$ is the step function.
 
@@ -39,7 +40,8 @@ Analytical form of truth and reconstructed value distribution.
 
 The function of detector.py is such transition funtion.
 
-$$ T(m, m') = \frac{1}{\sqrt{2\pi}\sigma}\exp(-\frac{(m'-m-\mu)^2}{2\sigma^2}) \epsilon(m, m') \rho(m) .$$
+$$ T(m, m') = \frac{1}{\sqrt{2\pi}\sigma}\exp(-\frac{(m'-m-\mu)^2}{2\sigma^2})
+\epsilon(m, m') \rho(m) .$$
 
 $\rho(m)=pq$ is the phase space factor, $p$, $q$ is the breakup monmentum of
 $A\rightarrow (BC) + D$ and $(BC) \rightarrow B + C$.
@@ -51,15 +53,16 @@ effect of efficency, we can set $\epsilon(m,m')=1$.
 
 The projections of the truth and reconstucted value distrubution are
 
-$$ f_{truth}(m) = \int T(m, m') dm',$$
+$$ f\_{truth}(m) = \int T(m, m') dm',$$
 
-$$ f_{rec}(m') = \int T(m, m') dm,$$
+$$ f\_{rec}(m') = \int T(m, m') dm,$$
 
 ![img](./assets/m_rec.png)
 
 and
 
-$$ f_{delta}(\delta) = \int T(\frac{m_s - \delta}{2}, \frac{m_s + \delta}{2}) d m_s.$$
+$$ f\_{delta}(\delta) = \int T(\frac{m_s - \delta}{2}, \frac{m_s + \delta}{2})
+d m_s.$$
 
 ![img](./assets/m_diff.png)
 
@@ -90,15 +93,18 @@ $x_i, A_i$ is sample points and weights for Gauss-Legendre quadrature.
 
 The probobility of reconstructed value is
 
-$$ P(m') = \int |A|^2 (m) T(m, m') dm \approx \epsilon_{rec}(m') \sum w_i' |A|^2(m_i). $$
+$$ P(m') = \int |A|^2 (m) T(m, m') dm \approx \epsilon\_{rec}(m') \sum w_i'
+|A|^2(m_i). $$
 
 The normalised factor is
 
-$$ \int P(m') d\Phi = \int |A|^2 (m) \int T(m, m') dm' dm \approx \sum_{m\sim f_{truth}(m)} |A|^2(m), $$
+$$ \int P(m') d\Phi = \int |A|^2 (m) \int T(m, m') dm' dm \approx \sum*{m\sim
+f*{truth}(m)} |A|^2(m), $$
 
 The negative log-likelihood (NLL) value is
 
-$$ -\ln L = - \sum \ln P(m_j') + N \ln \int P(m_i') d \Phi \approx - \sum_{j} \ln \sum w_i' |A|(m_{ij}) + N \ln \int P(m_i') d \Phi + constant.$$
+$$ -\ln L = - \sum \ln P(m*j') + N \ln \int P(m_i') d \Phi \approx - \sum*{j}
+\ln \sum w*i' |A|(m*{ij}) + N \ln \int P(m_i') d \Phi + constant.$$
 
 This is fit result from one test.
 

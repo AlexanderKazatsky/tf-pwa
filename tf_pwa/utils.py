@@ -1,6 +1,7 @@
 """
 This module provides some functions that may be useful in other modules.
 """
+
 import functools
 import json
 import math

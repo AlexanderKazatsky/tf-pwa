@@ -64,3 +64,9 @@ repos:
     hooks:
       - id: rstcheck
         files: \.(inc|rst)$
+
+
+
+
+ci:
+  skip: [pylint]

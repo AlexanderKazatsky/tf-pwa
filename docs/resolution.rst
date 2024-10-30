@@ -1,7 +1,7 @@
 Resolution in Partial Wave Analysis
 -----------------------------------
 
-Resolution is the effect of detector. To Consider the resolution properly, We need to take a general look about the detector process. We can divide the process of detector into two parts.
+Resolution is the effect of the detector. To consider the resolution properly, We need to take a general look at the detector process. We can divide the process of the detector into two parts.
 The first part is acceptance, with the probability for truth value :math:`x` as :math:`\epsilon_{T} (x)`.
 The second part is resolution, it means the measurement value :math:`y` will be a random number base on truth value :math:`x`. It is a conditional probability as :math:`R_{T}(y|x)`. The conditional probability is normalized as :math:`\int R_{T}(y|x) \mathrm{d} y = 1`.
 So, the total effect of detector is transition function
@@ -9,7 +9,7 @@ So, the total effect of detector is transition function
 .. math::
     T(x,y) = R_{T}(y|x)\epsilon_{T} (x).
 
-When we have a distribution of truth value with probability :math:`p(x)`, then we can get the distribution of measurement value with probability
+When we have a distribution of the true value with probability :math:`p(x)`, then we can get the distribution of measured value with probability
 
 .. math::
     p'(y)= \int p(x) T(x,y) \mathrm{d} x.
@@ -44,20 +44,20 @@ The final negative log-likelihood with considering resolution is
 .. math::
     - \ln L = -\sum \ln \frac{p'(y)}{\int p'(y) \mathrm{d}y} = -\sum \ln \frac{\int p(x) R(x|y) \mathrm{d} x}{ \int p(x) \epsilon_{T} (x) \mathrm{d} x } - \sum \ln \epsilon_{R}(y).
 
-The last part is a constant, we can ignore it in fit. In the numerical form, it can be written as
+The last part is a constant, we can ignore it in the fit. In the numerical form, it can be written as
 
 .. math::
     - \ln L = -\sum \ln \frac{1}{M}\sum_{x \sim R(x|y)} p(x) + N \ln \sum_{x \sim \epsilon_{T}(x)} p(x).
 
-For the second part, which we already have MC sample with :math:`x \sim \epsilon_{T}(x)`, we can use MC sample to do the sum directly.
+For the second part, which we already have MC sample with :math:`x \sim \epsilon_{T}(x)`, we can use the MC sample to do the sum directly.
 For the first part, we can generate some :math:`x` (:math:`M` times) for every :math:`y` (:math:`N` events). Using the generated samples (:math:`MN` events), we can calculate though the summation.
 
-In addition, we can insert some importance information for the summation as
+In addition, we can insert some important information for the summation as
 
 .. math::
     \int p(x) R(x|y) \mathrm{d} x \approx \frac{1}{\sum w_i} \sum_{x\sim \frac{R(x|y)}{w_i(x)}} w_i p(x).
 
-We need to keep the normalization. For example, we can use Gauss-Hermite quadrature.
+We need to keep the normalization. For example, we can use the Gauss-Hermite quadrature.
 
 In a simple situation, we only use mass for the variable for resolution function.
 We can build the datasets by replacing the mass by random number based on the resolution function,

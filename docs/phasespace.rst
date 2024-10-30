@@ -19,7 +19,7 @@ by using the property of :math:`\delta`-function,
 
 where :math:`x_i` is the root of :math:`f(x)=0`.
 
-Phase space has the follow chain rule,
+Phase space has the following chain rule,
 
 .. math::
    \mathrm{d} \Phi(P;p_1,\cdots,p_n) =& (2\pi)^4\delta^4(P - \sum {p_i}) \prod \frac{1}{2E_i}\frac{\mathrm{d}^3 \vec{p_i}}{(2\pi)^{3}}  \\
@@ -48,14 +48,14 @@ where :math:`\mathrm{d} \Omega = \mathrm{d}(\cos\theta)\mathrm{d}\varphi` and
    |\vec{p}| = \frac{\sqrt{(M^2 - (m_1 + m_2)^2)(M^2 -(m_1 - m_2)^2)}}{2M}
 
 
-The three body decay in the center mass frame :math:`P=(M,0,0,0),q^\star=(m_{23},0,0,0)`,
+The three body decay in the center of mass frame :math:`P=(M,0,0,0),q^\star=(m_{23},0,0,0)`,
 
 .. math::
    \mathrm{d} \Phi(P;p_1,p_2,p_3) =& \mathrm{d}\Phi(P;p_1,q) \mathrm{d}\Phi(q^\star;p_2^\star,p_3^\star) \frac{\mathrm{d} q^2}{2\pi} \\
    =& \frac{|\vec{p_1}||\vec{p_2^\star}|}{(2\pi)^5 16 M m_{23}} \mathrm{d} m_{23}^2 \mathrm{d} \Omega_1 \mathrm{d}\Omega_2^\star \\
    =& \frac{|\vec{p_1}||\vec{p_2^\star}|}{(2\pi)^5 8 M} \mathrm{d} m_{23} \mathrm{d} \Omega_1 \mathrm{d}\Omega_2^\star
 
-The n body decay in the center mass frame :math:`P=(M,0,0,0)`,
+The N body decay in the center of mass frame :math:`P=(M,0,0,0)`,
 
 .. math::
    \mathrm{d} \Phi(P;p_1,\cdots,p_n) =& \mathrm{d}\Phi(P;p_1,q_1)\prod_{i=1}^{n-2} \frac{\mathrm{d} q_{i}^2}{2\pi}\mathrm{d}\Phi(q_{i},p_{i+1},p_{i+2})\\
@@ -75,7 +75,7 @@ with those limit
 Phase Space Generator
 ---------------------
 
-For n body phase space
+For N body phase space
 
 .. math::
    \mathrm{d} \Phi(P;p_1,\cdots,p_n) =

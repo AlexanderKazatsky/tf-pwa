@@ -41,7 +41,6 @@ More detials can be found in `Dispersion Relation Integrals <https://analyticphy
 
 """
 
-
 import numpy as np
 import tensorflow as tf
 

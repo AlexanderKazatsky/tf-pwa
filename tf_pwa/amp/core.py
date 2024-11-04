@@ -259,6 +259,11 @@ class AmpBase(object):
         """
         if not hasattr(self, "_variables_map"):
             self._variables_map = {}
+        if True:
+            default_config = getattr(self, "default_params", {}).get(names, {})
+            if isinstance(default_config, (float, int)):
+                default_config = {"value": default_config}
+            kwargs.update(default_config)
         name = self.get_variable_name(names)
         var = Variable(name, shape, is_complex, **kwargs)
         self._variables_map[names] = var

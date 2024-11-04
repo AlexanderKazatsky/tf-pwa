@@ -3,6 +3,7 @@ import tensorflow as tf
 
 from tf_pwa.amp import get_relative_p
 from tf_pwa.angle import LorentzVector as lv
+from tf_pwa.data import data_index
 
 
 class HelicityAngle1:
@@ -90,7 +91,9 @@ class HelicityAngle:
         for i in self.decay_chain:
             data[i] = {}
             data[i]["|p|"] = get_relative_p(
-                ms[i.core], ms[i.outs[0]], ms[i.outs[1]]
+                data_index(ms, i.core),
+                data_index(ms, i.outs[0]),
+                data_index(ms, i.outs[1]),
             )
             if random:
                 costheta = np.random.random(m.shape) * 2 - 1
@@ -108,10 +111,13 @@ class HelicityAngle:
     def build_data(self, ms, costheta, phi):
         """generate monmentum with M_name = m"""
         data = {}
+        ms = self.get_all_mass(ms)
         for j, i in enumerate(self.decay_chain):
             data[i] = {}
             data[i]["|p|"] = get_relative_p(
-                ms[i.core], ms[i.outs[0]], ms[i.outs[1]]
+                data_index(ms, i.core),
+                data_index(ms, i.outs[0]),
+                data_index(ms, i.outs[1]),
             )
             costheta_i = costheta[j]
             phi_i = phi[j]

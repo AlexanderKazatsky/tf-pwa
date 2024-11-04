@@ -25,6 +25,12 @@ def eval_integral(
     return ret.numpy(), ret_grad
 
 
+def force_list(x):
+    if isinstance(x, (list, tuple)):
+        return x
+    return [x]
+
+
 class FitFractions:
     def __init__(self, amp, res):
         self.amp = amp
@@ -77,14 +83,15 @@ class FitFractions:
         self.cached_grad_total += g_int_mc
         cahced_res = self.amp.used_res
         amp_tmp = self.amp
+        fl = force_list
         for i in range(len(self.res)):
             for j in range(i, -1, -1):
                 if i == j:
                     name = str(self.res[i])
-                    amp_tmp.set_used_res([self.res[i]])
+                    amp_tmp.set_used_res(fl(self.res[i]))
                 else:
                     name = (str(self.res[i]), str(self.res[j]))
-                    amp_tmp.set_used_res([self.res[i], self.res[j]])
+                    amp_tmp.set_used_res(fl(self.res[i]) + fl(self.res[j]))
                 int_tmp, g_int_tmp = eval_integral(
                     amp_tmp,
                     mcdata,

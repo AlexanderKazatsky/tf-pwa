@@ -1016,10 +1016,10 @@ class ConfigLoader(BaseConfig):
             neglect_params = self._neglect_when_set_params
         if len(neglect_params) != 0:
             for v in params:
-                if v in self._neglect_when_set_params:
+                if v in neglect_params:
                     warnings.warn(
                         "Neglect {} when setting params.".format(
-                            neglect_params
+                            [i for i in params if i in neglect_params]
                         )
                     )
                     del ret[v]

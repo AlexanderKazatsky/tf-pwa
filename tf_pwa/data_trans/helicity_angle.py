@@ -74,7 +74,9 @@ class HelicityAngle:
         for i in self.decay_chain:
             for j in [i.core] + list(i.outs):
                 if j not in ms:
-                    if str(j) in replace_mass:
+                    if j in replace_mass:
+                        ms[j] = replace_mass[j]
+                    elif str(j) in replace_mass:
                         ms[j] = tf.convert_to_tensor(
                             replace_mass[str(j)], tf.float64
                         )

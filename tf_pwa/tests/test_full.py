@@ -341,7 +341,7 @@ def test_fit(toy_config, fit_result):
     fit_result.save_as("toy_data/final_params.json")
     fit_frac, frac_err = toy_config.cal_fitfractions()
     fit_frac, frac_err = toy_config.cal_fitfractions(method="new")
-    fit_frac, frac_err = toy_config.cal_fitfractions(
+    fit_frac_obj = toy_config.cal_fitfractions(
         method="new", res=["R_BC", ["R_BD", "R_CD"]]
     )
     save_frac_csv("toy_data/fit_frac.csv", fit_frac)

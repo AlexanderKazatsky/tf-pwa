@@ -6,23 +6,26 @@ import tensorflow as tf
 from tf_pwa.data import LazyCall, data_split
 
 
-def eval_integral(
+def _eval_integral(
     f, data, var, weight=None, args=(), no_grad=False, kwargs=None
 ):
     kwargs = {} if kwargs is None else kwargs
     weight = 1.0 if weight is None else weight
     if no_grad:
-        ret = tf.reduce_sum(f(data, *args, **kwargs) * weight)
+        fx = f(data, *args, **kwargs) * weight
+        ret = tf.reduce_sum(fx)
         ret_grad = np.zeros((len(var),))
     else:
         with tf.GradientTape() as tape:
-            ret = tf.reduce_sum(f(data, *args, **kwargs) * weight)
+            fx = f(data, *args, **kwargs) * weight
+            ret = tf.reduce_sum(fx)
         ret_grad = tape.gradient(ret, var, unconnected_gradients="zero")
         if len(ret_grad) == 0:
             ret_grad = np.array([])
         else:
             ret_grad = np.stack([i.numpy() for i in ret_grad])
-    return ret.numpy(), ret_grad
+    int_square = tf.reduce_sum(fx**2)
+    return ret.numpy(), ret_grad, int_square.numpy()
 
 
 def force_list(x):
@@ -39,6 +42,7 @@ class FitFractions:
         self.res = res
         self.cached_int = {}
         self.cached_grad = {}
+        self.cached_square = {}
         self.cached_int_total = 0.0
         self.cached_grad_total = np.zeros((self.n_var,))
         self.error_matrix = np.diag(np.zeros((self.n_var,)))
@@ -55,6 +59,7 @@ class FitFractions:
                 else:
                     name = (str(self.res[i]), str(self.res[j]))
                 self.cached_int[name] = 0.0
+                self.cached_square[name] = 0.0
                 self.cached_grad[name] = np.zeros_like((self.n_var,))
 
     def integral(self, mcdata, *args, batch=None, no_grad=False, **kwargs):
@@ -71,7 +76,7 @@ class FitFractions:
             mcdata = mcdata.eval()
         if weight is None:
             weight = mcdata.get("weight", 1.0)
-        int_mc, g_int_mc = eval_integral(
+        int_mc, g_int_mc, _ = _eval_integral(
             self.amp,
             mcdata,
             var=self.var,
@@ -92,7 +97,7 @@ class FitFractions:
                 else:
                     name = (str(self.res[i]), str(self.res[j]))
                     amp_tmp.set_used_res(fl(self.res[i]) + fl(self.res[j]))
-                int_tmp, g_int_tmp = eval_integral(
+                int_tmp, g_int_tmp, int_square = _eval_integral(
                     amp_tmp,
                     mcdata,
                     var=self.var,
@@ -102,6 +107,9 @@ class FitFractions:
                 )
                 self.cached_int[name] = self.cached_int[name] + int_tmp
                 self.cached_grad[name] = self.cached_grad[name] + g_int_tmp
+                self.cached_square[name] = (
+                    self.cached_square[name] + int_square
+                )
 
         self.amp.set_used_res(cahced_res)
 
@@ -142,7 +150,7 @@ class FitFractions:
             )
         return fit_frac, g_fit_frac
 
-    def get_frac(self, error_matrix=None, sum_diag=True):
+    def get_frac(self, error_matrix=None, sum_diag=True, add_int_error=False):
         if error_matrix is None:
             error_matrix = self.error_matrix
         fit_frac, g_fit_frac = self.get_frac_grad(sum_diag=sum_diag)
@@ -152,6 +160,9 @@ class FitFractions:
         for k, v in g_fit_frac.items():
             e = np.sqrt(np.dot(np.dot(error_matrix, v), v))
             fit_frac_err[k] = e
+            if add_int_error and k in self.cached_square:
+                scale = 1 / self.cached_int_total**2
+                fit_frac_err[k] = np.sqrt(e**2 + self.cached_square[k] * scale)
         return fit_frac, fit_frac_err
 
     def __iter__(self):

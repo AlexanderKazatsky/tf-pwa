@@ -832,8 +832,8 @@ class ConfigLoader(BaseConfig):
             params = {}
         if correct_params is None:
             correct_params = []
-            if method is None:
-                method = "correct"
+        if len(correct_params) > 0 and method is None:
+            method = "correct"
         if hasattr(params, "params"):
             params = getattr(params, "params")
         if not using_cached:

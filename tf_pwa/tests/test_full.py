@@ -144,6 +144,14 @@ def test_save_model(toy_config):
     config.save_tensorflow_model("toy_data/model")
 
 
+def test_fit_no_params(gen_toy):
+    config = ConfigLoader(f"{this_dir}/config_no_params.yml")
+    config.fit()
+    config.get_params_error(method="default")
+    config.cal_fitfractions(method="old")
+    config.cal_fitfractions(method="new")
+
+
 def test_cfit(gen_toy):
     config = ConfigLoader(f"{this_dir}/config_cfit.yml")
     config.set_params(f"{this_dir}/gen_params.json")

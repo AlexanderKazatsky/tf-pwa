@@ -18,7 +18,10 @@ def eval_integral(
         with tf.GradientTape() as tape:
             ret = tf.reduce_sum(f(data, *args, **kwargs) * weight)
         ret_grad = tape.gradient(ret, var, unconnected_gradients="zero")
-        ret_grad = np.stack([i.numpy() for i in ret_grad])
+        if len(ret_grad) == 0:
+            ret_grad = np.array([])
+        else:
+            ret_grad = np.stack([i.numpy() for i in ret_grad])
     return ret.numpy(), ret_grad
 
 
@@ -130,7 +133,6 @@ class FitFractions:
             g_fit_frac["sum_diag"] = sum(
                 [g_fit_frac[str(i)] for i in self.res]
             )
-        print(fit_frac)
         return fit_frac, g_fit_frac
 
     def get_frac(self, error_matrix=None, sum_diag=True):

@@ -262,8 +262,6 @@ class ConfigLoader(BaseConfig):
             constrains = {}
         self.add_decay_constraints(amp, constrains.get("decay", {}))
         self.add_particle_constraints(amp, constrains.get("particle", {}))
-        self.add_fix_var_constraints(amp, constrains.get("fix_var", {}))
-        self.add_free_var_constraints(amp, constrains.get("free_var", []))
         self.add_var_range_constraints(amp, constrains.get("var_range", {}))
         self.add_var_equal_constraints(amp, constrains.get("var_equal", []))
         self.add_pre_trans_constraints(amp, constrains.get("pre_trans", None))
@@ -273,6 +271,8 @@ class ConfigLoader(BaseConfig):
         self.add_gauss_constr_constraints(
             amp, constrains.get("gauss_constr", {})
         )
+        self.add_fix_var_constraints(amp, constrains.get("fix_var", {}))
+        self.add_free_var_constraints(amp, constrains.get("free_var", []))
         for k, v in self.extra_constrains.items():
             v(amp, constrains.get(k, {}))
 

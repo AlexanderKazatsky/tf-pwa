@@ -55,7 +55,7 @@ def print_fit_result_roofit(config, fit_result):
     value = fit_result.params
     params_name = config.vm.trainable_vars
     n_par = len(params_name)
-    name_size = max(len(i) for i in params_name)
+    name_size = max([5] + [len(i) for i in params_name])
     # fcn = config.get_fcn()
     # _, grad = fcn.nll_grad(fit_result.params)
     # edm = np.dot(np.dot(config.inv_he, grad), grad)

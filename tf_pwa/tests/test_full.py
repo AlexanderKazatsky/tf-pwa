@@ -144,6 +144,14 @@ def test_save_model(toy_config):
     config.save_tensorflow_model("toy_data/model")
 
 
+def test_fit_no_params(gen_toy):
+    config = ConfigLoader(f"{this_dir}/config_no_params.yml")
+    config.fit()
+    config.get_params_error(method="default")
+    config.cal_fitfractions(method="old")
+    config.cal_fitfractions(method="new")
+
+
 def test_cfit(gen_toy):
     config = ConfigLoader(f"{this_dir}/config_cfit.yml")
     config.set_params(f"{this_dir}/gen_params.json")
@@ -333,6 +341,9 @@ def test_fit(toy_config, fit_result):
     fit_result.save_as("toy_data/final_params.json")
     fit_frac, frac_err = toy_config.cal_fitfractions()
     fit_frac, frac_err = toy_config.cal_fitfractions(method="new")
+    fit_frac_obj = toy_config.cal_fitfractions(
+        method="new", res=["R_BC", ["R_BD", "R_CD"]]
+    )
     save_frac_csv("toy_data/fit_frac.csv", fit_frac)
 
     with toy_config.params_trans() as pt:

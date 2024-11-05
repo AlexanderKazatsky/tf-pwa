@@ -262,8 +262,6 @@ class ConfigLoader(BaseConfig):
             constrains = {}
         self.add_decay_constraints(amp, constrains.get("decay", {}))
         self.add_particle_constraints(amp, constrains.get("particle", {}))
-        self.add_fix_var_constraints(amp, constrains.get("fix_var", {}))
-        self.add_free_var_constraints(amp, constrains.get("free_var", []))
         self.add_var_range_constraints(amp, constrains.get("var_range", {}))
         self.add_var_equal_constraints(amp, constrains.get("var_equal", []))
         self.add_pre_trans_constraints(amp, constrains.get("pre_trans", None))
@@ -273,6 +271,8 @@ class ConfigLoader(BaseConfig):
         self.add_gauss_constr_constraints(
             amp, constrains.get("gauss_constr", {})
         )
+        self.add_fix_var_constraints(amp, constrains.get("fix_var", {}))
+        self.add_free_var_constraints(amp, constrains.get("free_var", []))
         for k, v in self.extra_constrains.items():
             v(amp, constrains.get(k, {}))
 
@@ -832,8 +832,8 @@ class ConfigLoader(BaseConfig):
             params = {}
         if correct_params is None:
             correct_params = []
-            if method is None:
-                method = "correct"
+        if len(correct_params) > 0 and method is None:
+            method = "correct"
         if hasattr(params, "params"):
             params = getattr(params, "params")
         if not using_cached:
@@ -1016,10 +1016,10 @@ class ConfigLoader(BaseConfig):
             neglect_params = self._neglect_when_set_params
         if len(neglect_params) != 0:
             for v in params:
-                if v in self._neglect_when_set_params:
+                if v in neglect_params:
                     warnings.warn(
                         "Neglect {} when setting params.".format(
-                            neglect_params
+                            [i for i in params if i in neglect_params]
                         )
                     )
                     del ret[v]

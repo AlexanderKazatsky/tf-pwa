@@ -9,7 +9,6 @@ tf_pwa/version.py
 *.npy
 *.json
 *.log
-*.yml
 *.png
 *.pdf
 *.pptx

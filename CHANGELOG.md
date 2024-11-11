@@ -2,9 +2,15 @@
 
 ## [Unreleased](https://github.com/jiangyi15/tf-pwa/tree/HEAD)
 
-[Full Changelog](https://github.com/jiangyi15/tf-pwa/compare/v0.2.1...HEAD)
+[Full Changelog](https://github.com/jiangyi15/tf-pwa/compare/v0.2.2...HEAD)
+
+## [v0.2.2](https://github.com/jiangyi15/tf-pwa/tree/v0.2.2) (2024-11-13)
+
+[Full Changelog](https://github.com/jiangyi15/tf-pwa/compare/v0.2.1...v0.2.2)
 
 ## [v0.2.1](https://github.com/jiangyi15/tf-pwa/tree/v0.2.1) (2024-02-10)
+
+[Full Changelog](https://github.com/jiangyi15/tf-pwa/compare/v0.2.0...v0.2.1)
 
 **Irreducible Tensor Formula**
 

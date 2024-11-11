@@ -17,13 +17,14 @@
 - `default_params` to set value for paramters for particle model .
   [#155](https://github.com/jiangyi15/tf-pwa/pull/155)
 
-- Useful functions:
+- `add_int_err` option for fit fraction sample size uncertainties.
+  [#155](https://github.com/jiangyi15/tf-pwa/pull/155)
 
-  - phase space volume: [#143](https://github.com/jiangyi15/tf-pwa/pull/143)
+- phase space volume: [#143](https://github.com/jiangyi15/tf-pwa/pull/143)
 
-  - pole_function: [#144](https://github.com/jiangyi15/tf-pwa/pull/144)
+- pole_function: [#144](https://github.com/jiangyi15/tf-pwa/pull/144)
 
-  - combine_asym_error: [#144](https://github.com/jiangyi15/tf-pwa/pull/144)
+- combine_asym_error: [#144](https://github.com/jiangyi15/tf-pwa/pull/144)
 
 - New models.
 

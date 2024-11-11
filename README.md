@@ -92,8 +92,10 @@ conda install tf-pwa
 <details><summary>
 ###  pip
 </summary><p>
-When using `pip`, you will need to install CUDA to use GPU (The newest tensorflow support install with CUDA runtime directly as `pip install tensorflow[and-cuda]`). Just run the
-following command :
+
+When using `pip`, you will need to install CUDA to use GPU (The newest
+tensorflow support install with CUDA runtime directly as
+`pip install tensorflow[and-cuda]`). Just run the following command :
 
 ```bash
 python3 -m pip install -e .

@@ -459,6 +459,17 @@ def test_mix_likelihood(toy_config3):
     results = toy_config3.fit(maxiter=1)
 
 
+def test_mix_config(gen_toy):
+    from tf_pwa.config_loader import MixConfig
+
+    config = MixConfig(
+        [f"{this_dir}/config_toy.yml", f"{this_dir}/config_toy.yml"],
+        total_same=True,
+    )
+    config.set_params(f"{this_dir}/exp_params.json")
+    config.plot_partial_wave(prefix="toy_data/mix_plot/")
+
+
 def test_cp_particles():
     config = ConfigLoader(f"{this_dir}/config_self_cp.yml")
     phsp = config.generate_phsp(100)

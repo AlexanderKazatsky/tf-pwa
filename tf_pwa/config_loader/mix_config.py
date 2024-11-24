@@ -8,9 +8,10 @@ from .multi_config import MultiConfig
 
 
 class MixAmplitude(AmplitudeModel):
-    def __init__(self, amps):
+    def __init__(self, amps, same_data=False):
         self.amps = amps
         self.vm = amps[0].vm
+        self.same_data = same_data
 
     def __getattr__(self, name):
         return getattr(self.amps[-1], name)
@@ -18,7 +19,11 @@ class MixAmplitude(AmplitudeModel):
     def pdf(self, data):
         ret = 0
         scale = 0
-        for amp, data_i in zip(self.amps, data["datas"]):
+        for idx, amp in enumerate(self.amps):
+            if not self.same_data:
+                data_i = data["datas"][idx]
+            else:
+                data_i = data
             w = data_i.get("weight", 1)
             ret = ret + amp(data_i) * w
             scale = scale + w
@@ -26,7 +31,13 @@ class MixAmplitude(AmplitudeModel):
 
 
 class MixConfig(MultiConfig):
+    def __init__(self, *args, total_same=False, same_data=False, **kwargs):
+        super().__init__(*args, total_same=total_same, **kwargs)
+        self.same_data = same_data
+
     def get_data(self, name):
+        if self.same_data:
+            return self.configs[0].get_data(name)
         all_data = [i.get_data(name) for i in self.configs]
         if all_data[0] is None:
             return all_data[0]
@@ -52,7 +63,7 @@ class MixConfig(MultiConfig):
 
     def get_amplitude(self, vm=None, name=""):
         amps = self.get_amplitudes(vm=vm)
-        return MixAmplitude(amps)
+        return MixAmplitude(amps, self.same_data)
 
     @functools.lru_cache()
     def _get_model(self, vm=None, name=""):

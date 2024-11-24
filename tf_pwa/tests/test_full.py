@@ -470,6 +470,18 @@ def test_mix_config(gen_toy):
     config.plot_partial_wave(prefix="toy_data/mix_plot/")
 
 
+def test_mix_config_same_data(gen_toy):
+    from tf_pwa.config_loader import MixConfig
+
+    config = MixConfig(
+        [f"{this_dir}/config_toy.yml", f"{this_dir}/config_toy.yml"],
+        total_same=True,
+        same_data=True,
+    )
+    config.set_params(f"{this_dir}/exp_params.json")
+    config.plot_partial_wave(prefix="toy_data/mix_plot/")
+
+
 def test_cp_particles():
     config = ConfigLoader(f"{this_dir}/config_self_cp.yml")
     phsp = config.generate_phsp(100)

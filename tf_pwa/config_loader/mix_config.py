@@ -8,32 +8,33 @@ from .multi_config import MultiConfig
 
 
 class MixAmplitude(AmplitudeModel):
-    def __init__(self, amps, same_data=False):
+    def __init__(self, amps, same_data=False, base_idx=0, vm=None):
+        params = amps[base_idx].get_params()
+        super().__init__(amps[base_idx].decay_group, vm=amps[base_idx].vm)
+        params = amps[base_idx].set_params(params)
         self.amps = amps
-        self.vm = amps[0].vm
+        self.vm = amps[base_idx].vm
         self.same_data = same_data
-
-    def __getattr__(self, name):
-        return getattr(self.amps[-1], name)
 
     def pdf(self, data):
         ret = 0
         scale = 0
         for idx, amp in enumerate(self.amps):
-            if not self.same_data:
+            if not self.same_data and "datas" in data:
                 data_i = data["datas"][idx]
             else:
                 data_i = data
             w = data_i.get("weight", 1)
             ret = ret + amp(data_i) * w
             scale = scale + w
-        return ret / scale
+        return ret / scale * len(self.amps)
 
 
 class MixConfig(MultiConfig):
     def __init__(self, *args, total_same=False, same_data=False, **kwargs):
         super().__init__(*args, total_same=total_same, **kwargs)
         self.same_data = same_data
+        self.cached_amps = None
 
     def get_data(self, name):
         if self.same_data:
@@ -44,7 +45,9 @@ class MixConfig(MultiConfig):
         ret = []
         for i in range(len(all_data[0])):
             tmp = {"datas": [j[i] for j in all_data]}
-            tmp["weight"] = sum(j[i]["weight"] for j in all_data)
+            tmp["weight"] = sum(j[i]["weight"] for j in all_data) / len(
+                all_data
+            )
             ret.append(tmp)
         return ret
 
@@ -61,9 +64,12 @@ class MixConfig(MultiConfig):
         assert len(inmc) == self._Ngroup
         return data, phsp, bg, inmc
 
-    def get_amplitude(self, vm=None, name=""):
-        amps = self.get_amplitudes(vm=vm)
-        return MixAmplitude(amps, self.same_data)
+    def get_amplitude(self, vm=None, name="", base_idx=0):
+        if self.cached_amps is None:
+            self.cached_amps = self.get_amplitudes(vm=vm)
+        return MixAmplitude(
+            self.cached_amps, self.same_data, base_idx=base_idx
+        )
 
     @functools.lru_cache()
     def _get_model(self, vm=None, name=""):
@@ -79,3 +85,7 @@ class MixConfig(MultiConfig):
         return self.configs[-1].get_fcn(
             all_data=all_data, vm=model[0].vm, batch=batch, model=model
         )
+
+    def plot_partial_wave(self, *args, base_idx=0, **kwargs):
+        amp = self.get_amplitude(base_idx)
+        super().plot_partial_wave(*args, amp=amp, **kwargs)

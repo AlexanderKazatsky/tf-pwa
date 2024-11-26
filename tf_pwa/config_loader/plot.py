@@ -383,6 +383,7 @@ def _get_plot_partial_wave_input(
     cut_function=lambda x: 1,
     partial_waves_function=None,
     extra_plots=None,
+    amp=None,
     **kwargs
 ):
     """
@@ -434,7 +435,8 @@ def _get_plot_partial_wave_input(
     if self.config["data"].get("model", "auto") == "cfit":
         phsp = _get_cfit_eff_phsp(self, phsp, batch)
         phsp_rec = _get_cfit_eff_phsp(self, phsp_rec, batch)
-    amp = self.get_amplitude()
+    if amp is None:
+        amp = self.get_amplitude()
     self._Ngroup = len(data)
     ws_bkg = [
         None if bg_i is None else bg_i.get("weight", None) for bg_i in bg

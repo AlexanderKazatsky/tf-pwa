@@ -537,8 +537,9 @@ class ConfigLoader(BaseConfig):
                         arg_i.sameas(arg)
 
     @functools.lru_cache()
-    def _get_model(self, vm=None, name=""):
-        amp = self.get_amplitude(vm=vm, name=name)
+    def _get_model(self, vm=None, name="", amp=None):
+        if amp is None:
+            amp = self.get_amplitude(vm=vm, name=name)
         model_name = self.config["data"].get("model", "auto")
         w_bkg, w_inmc = self._get_bg_weight()
         model = []
@@ -657,7 +658,9 @@ class ConfigLoader(BaseConfig):
             w_bkg = tmp
         return w_bkg, w_inmc
 
-    def get_fcn(self, all_data=None, batch=65000, vm=None, name=""):
+    def get_fcn(
+        self, all_data=None, batch=65000, vm=None, name="", model=None
+    ):
         if all_data is None:
             if vm in self.cached_fcn:
                 return self.cached_fcn[vm]
@@ -669,7 +672,8 @@ class ConfigLoader(BaseConfig):
             inmc = [None] * self._Ngroup
         if bg is None:
             bg = [None] * self._Ngroup
-        model = self._get_model(vm=vm, name=name)
+        if model is None:
+            model = self._get_model(vm=vm, name=name)
         fcns = []
 
         # print(self.config["data"].get("using_mix_likelihood", False))

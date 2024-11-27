@@ -69,7 +69,7 @@ import tensorflow as tf
 
 with config.params_trans() as pt:
     a2_r = pt["A->R2.CR2->B.D_total_0r"]
-    a2_i = pt["A->R2.CR2->B.D_total_0r"]
+    a2_i = pt["A->R2.CR2->B.D_total_0i"]
     a2_x = a2_r * tf.cos(a2_i)
 
 # %%
@@ -85,16 +85,14 @@ print(a2_x.numpy(), pt.get_error(a2_x).numpy())
 
 amp = config.get_amplitude()
 
-with config.params_trans() as pt1:
-    with config.params_trans() as pt:
-        int_mc = tf.reduce_sum(amp(phsp))
-        with amp.temp_used_res(["R1_a", "R1_b"]):
-            part_int_mc = tf.reduce_sum(amp(phsp))
-        ratio = part_int_mc / int_mc
-    error = pt.get_error(ratio)
+with config.params_trans() as pt:
+    int_mc = tf.reduce_sum(amp(phsp))
+    with amp.temp_used_res(["R1_a", "R1_b"]):
+        part_int_mc = tf.reduce_sum(amp(phsp))
+    ratio = part_int_mc / int_mc
+error = pt.get_error(ratio)
 
 print(ratio.numpy(), "+/-", error.numpy())
-print(error.numpy(), "+/-", pt1.get_error(error).numpy())
 
 # %%
 # For large data size it would be some problem named OOM (out of memory).

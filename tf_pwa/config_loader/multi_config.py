@@ -66,10 +66,17 @@ class MultiConfig(object):
         else:
             self.vm = vm
         self.total_same = total_same
-        self.configs = [
-            ConfigLoader(i, vm=self.vm, share_dict=share_dict)
-            for i in file_names
-        ]
+        self.configs = []
+        for i in file_names:
+            if isinstance(i, (str, dict)):
+                c = ConfigLoader(i, vm=self.vm, share_dict=share_dict)
+            elif isinstance(i, list):
+                from tf_pwa.config_loader import MixConfig
+
+                c = MixConfig(i, vm=self.vm, share_dict=share_dict)
+            else:
+                raise ValueError("config for {} is not supported".format(i))
+            self.configs.append(c)
         self.bound_dic = {}
         self.gauss_constr_dic = {}
         self._neglect_when_set_params = []

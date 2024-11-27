@@ -479,7 +479,7 @@ def test_mix_config_same_data(gen_toy):
         same_data=True,
     )
     config.set_params(f"{this_dir}/exp_params.json")
-    config.plot_partial_wave(prefix="toy_data/mix_plot/")
+    config.plot_partial_wave(prefix="toy_data/mix_plot/", base_idx=1)
 
 
 def test_cp_particles():

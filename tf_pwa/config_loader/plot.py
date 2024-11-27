@@ -592,6 +592,7 @@ def _cal_partial_wave(
     phsp_rec=None,
     cut_function=lambda x: 1,
     partial_waves_function=None,
+    data_index_prefix=(),
     **kwargs
 ):
     data_dict = {}
@@ -670,6 +671,11 @@ def _cal_partial_wave(
             phsp_dict["MC_{0}_{1}_fit".format(i, name_i)] = cut_phsp * sr(
                 weight_i
             )
+        if data_index_prefix:
+            data = data_index(data, data_index_prefix)
+            phsp_rec = data_index(phsp_rec, data_index_prefix)
+            if bg is not None:
+                bg = data_index(bg, data_index_prefix)
         for name in plot_var_dic:
             readdata = plot_var_dic[name]["readdata"]
             idx = plot_var_dic[name].get("idx", (None,))

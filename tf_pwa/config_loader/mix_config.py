@@ -8,13 +8,20 @@ from .multi_config import MultiConfig
 
 
 class MixAmplitude(AmplitudeModel):
-    def __init__(self, amps, same_data=False, base_idx=0, vm=None):
-        params = amps[base_idx].get_params()
-        super().__init__(amps[base_idx].decay_group, vm=amps[base_idx].vm)
-        params = amps[base_idx].set_params(params)
+    def __init__(self, amps, same_data=False, vm=None, base_idx=0):
         self.amps = amps
-        self.vm = amps[base_idx].vm
+        self.vm = amps[0].vm
         self.same_data = same_data
+        self.base_idx = base_idx
+        self.cached_fun = []
+
+    def partial_weight(self, data, combine):
+        if not self.same_data:
+            data = data["datas"][self.base_idx]
+        return self.amps[self.base_idx].partial_weight(data, combine)
+
+    def __getattr__(self, name):
+        return getattr(self.amps[self.base_idx], name)
 
     def pdf(self, data):
         ret = 0
@@ -28,6 +35,9 @@ class MixAmplitude(AmplitudeModel):
             ret = ret + amp(data_i) * w
             scale = scale + w
         return ret / scale * len(self.amps)
+
+    def __call__(self, data):
+        return self.pdf(data)
 
 
 class MixConfig(MultiConfig):
@@ -43,12 +53,23 @@ class MixConfig(MultiConfig):
         if all_data[0] is None:
             return all_data[0]
         ret = []
+        n_data = len(all_data)
         for i in range(len(all_data[0])):
             tmp = {"datas": [j[i] for j in all_data]}
-            tmp["weight"] = sum(j[i]["weight"] for j in all_data) / len(
-                all_data
-            )
+            tmp["weight"] = sum(j[i]["weight"] for j in all_data) / n_data
             ret.append(tmp)
+        return ret
+
+    def get_data_rec(self, name):
+        ret = self.get_data(name + "_rec")
+        if ret is None:
+            ret = self.get_data(name)
+        return ret
+
+    def get_phsp_plot(self, tail=""):
+        ret = self.get_data("phsp_plot" + tail)
+        if ret is None:
+            ret = self.get_data("phsp" + tail)
         return ret
 
     def get_all_data(self):
@@ -87,5 +108,21 @@ class MixConfig(MultiConfig):
         )
 
     def plot_partial_wave(self, *args, base_idx=0, **kwargs):
-        amp = self.get_amplitude(base_idx)
-        super().plot_partial_wave(*args, amp=amp, **kwargs)
+        amp = self.get_amplitude(base_idx=base_idx)
+        data = self.get_data_rec("data")
+        bg = self.get_data_rec("bg")
+        phsp = self.get_phsp_plot()
+        phsp_rec = self.get_phsp_plot("_rec")
+        data_index_prefix = ()
+        if not self.same_data:
+            data_index_prefix = "datas", base_idx
+        self.configs[base_idx].plot_partial_wave(
+            *args,
+            amp=amp,
+            data=data,
+            phsp=phsp,
+            bg=bg,
+            phsp_rec=phsp_rec,
+            data_index_prefix=data_index_prefix,
+            **kwargs,
+        )

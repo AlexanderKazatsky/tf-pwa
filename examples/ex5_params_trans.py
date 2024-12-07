@@ -2,7 +2,7 @@
 Examples for error propagation
 ------------------------------
 
-Hear we use the same config in `particle_amplitude.py`
+Here we use the same config in `ex3_particle_config.py`
 
 """
 

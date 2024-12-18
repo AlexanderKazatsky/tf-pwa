@@ -107,6 +107,7 @@ class VarsManager(object):
         self.trainable_vars = []  # [name,...]
         self.complex_vars = {}  # {name:polar(bool),...}
         self.same_list = []  # [[name1,name2],...]
+        self.same_var_map = {}
         self.mask_vars = {}
         self.pre_trans = {}
 
@@ -421,7 +422,10 @@ class VarsManager(object):
         :param unfix: Boolean. If it's **True**, the variable will become trainable rather than be fixed.
         """
         if value is None:
-            value = self.variables[name].value
+            if name in self.variables:
+                value = self.variables[name].value
+            else:
+                value = 0.0
             if callable(value):
                 value = value()
         else:
@@ -552,6 +556,8 @@ class VarsManager(object):
         else:
             same_real(new_name_list)
         self.same_list.append(name_list)
+        for i in name_list:
+            self.same_var_map[i] = name_list[0]
 
     def get(self, name, val_in_fit=True):
         """
@@ -644,7 +650,7 @@ class VarsManager(object):
         """
         vars_list = []
         for name in self.trainable_vars:
-            vars_list.append(self.variables[name])
+            vars_list.append(self.variables[self.same_var_map.get(name, name)])
         return vars_list
 
     def get_all_val(self, val_in_fit=False):  # if bound transf var

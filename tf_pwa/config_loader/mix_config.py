@@ -1,6 +1,7 @@
 import functools
 
 from tf_pwa.amp import AmplitudeModel
+from tf_pwa.amp.core import Variable, variable_scope
 from tf_pwa.data import EvalLazy
 from tf_pwa.model import FCN
 
@@ -8,12 +9,19 @@ from .multi_config import MultiConfig
 
 
 class MixAmplitude(AmplitudeModel):
-    def __init__(self, amps, same_data=False, vm=None, base_idx=0):
+    def __init__(
+        self, amps, same_data=False, vm=None, base_idx=0, no_scale=False
+    ):
         self.amps = amps
         self.vm = amps[0].vm
         self.same_data = same_data
         self.base_idx = base_idx
         self.cached_fun = []
+        self.no_scale = no_scale
+        with variable_scope(self.vm):
+            self.scale = Variable("scale", shape=(len(self.amps),))
+        self.scale.set_fix_idx(0, fix_vals=1)
+        self.scale.set_value(1.0)
 
     def partial_weight(self, data, combine):
         if not self.same_data:
@@ -26,14 +34,17 @@ class MixAmplitude(AmplitudeModel):
     def pdf(self, data):
         ret = 0
         scale = 0
+        scale_var = self.scale()
         for idx, amp in enumerate(self.amps):
             if not self.same_data and "datas" in data:
                 data_i = data["datas"][idx]
             else:
                 data_i = data
             w = data_i.get("weight", 1)
-            ret = ret + amp(data_i) * w
+            ret = ret + amp(data_i) * w * scale_var[idx]
             scale = scale + w
+        if self.no_scale:
+            return ret
         return ret / scale * len(self.amps)
 
     def __call__(self, data):
@@ -41,9 +52,17 @@ class MixAmplitude(AmplitudeModel):
 
 
 class MixConfig(MultiConfig):
-    def __init__(self, *args, total_same=False, same_data=False, **kwargs):
+    def __init__(
+        self,
+        *args,
+        total_same=False,
+        same_data=False,
+        no_scale=False,
+        **kwargs
+    ):
         super().__init__(*args, total_same=total_same, **kwargs)
         self.same_data = same_data
+        self.no_scale = no_scale
         self.cached_amps = None
 
     def get_data(self, name):
@@ -89,7 +108,10 @@ class MixConfig(MultiConfig):
         if self.cached_amps is None:
             self.cached_amps = self.get_amplitudes(vm=vm)
         return MixAmplitude(
-            self.cached_amps, self.same_data, base_idx=base_idx
+            self.cached_amps,
+            self.same_data,
+            base_idx=base_idx,
+            no_scale=self.no_scale,
         )
 
     @functools.lru_cache()

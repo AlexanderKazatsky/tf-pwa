@@ -675,6 +675,7 @@ class ConfigLoader(BaseConfig):
         if model is None:
             model = self._get_model(vm=vm, name=name)
         fcns = []
+        mc_scale = self.config["data"].get("mc_scale", [1.0] * self._Ngroup)
 
         # print(self.config["data"].get("using_mix_likelihood", False))
         if self.config["data"].get("using_mix_likelihood", False):
@@ -684,14 +685,15 @@ class ConfigLoader(BaseConfig):
                 data,
                 phsp,
                 bg=bg,
+                mc_scale=mc_scale,
                 batch=batch,
                 gauss_constr=self.gauss_constr_dic,
             )
             if all_data is None:
                 self.cached_fcn[vm] = fcn
             return fcn
-        for idx, (md, dt, mc, sb, ij) in enumerate(
-            zip(model, data, phsp, bg, inmc)
+        for idx, (md, dt, mc, sb, ij, si) in enumerate(
+            zip(model, data, phsp, bg, inmc, mc_scale)
         ):
             if self.config["data"].get("model", "auto") == "cfit":
                 fcns.append(
@@ -700,6 +702,7 @@ class ConfigLoader(BaseConfig):
                         dt,
                         mc,
                         batch=batch,
+                        mc_scale=si,
                         inmc=ij,
                         gauss_constr=self.gauss_constr_dic,
                     )
@@ -711,6 +714,7 @@ class ConfigLoader(BaseConfig):
                         dt,
                         mc,
                         bg=sb,
+                        mc_scale=si,
                         batch=batch,
                         inmc=ij,
                         gauss_constr=self.gauss_constr_dic,

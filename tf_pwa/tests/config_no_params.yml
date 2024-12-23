@@ -3,6 +3,15 @@ data:
   extra_var:
     c:
       default: 1
+    N:
+      default: 2
+      params:
+        lam: 2
+      model: poisson
+    d:
+      default: 1
+      a: [-1, 1]
+      model: choice
   data: [["toy_data/data.dat"]]
   bg: [["toy_data/bg.dat"]]
   phsp: [["toy_data/PHSP.dat"]]

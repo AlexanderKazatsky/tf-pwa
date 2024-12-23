@@ -145,3 +145,21 @@ class ARGenerator(BaseGenerator):
         )
         self.status = status
         return ret
+
+
+class MergeGenerator(BaseGenerator):
+    def __init__(self, gens):
+        self.gens = gens
+
+    def generate(self, N):
+        if len(self.gens) == 0:
+            return {}
+        ret = self.gens[0].generate(N)
+        for i in self.gens[1:]:
+            tmp = i.generate(N)
+            for k, v in tmp.items():
+                ret[k] = v
+        return ret
+
+    def cal_max_weight(self, *args, **kwargs):
+        return self.gens[0].cal_max_weight(*args, **kwargs)

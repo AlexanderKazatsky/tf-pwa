@@ -150,6 +150,7 @@ def test_fit_no_params(gen_toy):
     config.get_params_error(method="default")
     config.cal_fitfractions(method="old")
     config.cal_fitfractions(method="new")
+    config.generate_phsp(10)
 
 
 def test_cfit(gen_toy):

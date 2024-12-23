@@ -145,3 +145,15 @@ class ARGenerator(BaseGenerator):
         )
         self.status = status
         return ret
+
+
+class MergeGenerator(BaseGenerator):
+    def __init__(self, gens):
+        self.gens = gens
+
+    def generate(self, N):
+        ret = {}
+        for i in self.gens:
+            tmp = i.generate(N)
+            ret.update(tmp)
+        return ret

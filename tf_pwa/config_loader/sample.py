@@ -4,7 +4,13 @@ from tf_pwa.amp.core import get_particle_model_name
 from tf_pwa.cal_angle import cal_angle_from_momentum
 from tf_pwa.config import get_config
 from tf_pwa.data import data_mask, data_merge, data_shape
-from tf_pwa.generator.generator import BaseGenerator, GenTest, multi_sampling
+from tf_pwa.generator.base_generator import create_simple_generator
+from tf_pwa.generator.generator import (
+    BaseGenerator,
+    GenTest,
+    MergeGenerator,
+    multi_sampling,
+)
 from tf_pwa.particle import BaseParticle
 from tf_pwa.phasespace import ChainGenerator  # as generate_phsp_o
 from tf_pwa.tensorflow_wrapper import tf
@@ -73,6 +79,15 @@ def generate_toy2(config, *args, **kwargs):
 
 
 @ConfigLoader.register_function()
+def get_extra_var_generator(config):
+    extra_var = config.config["data"].get("extra_var", {})
+    gens = []
+    for k, v in extra_var.items():
+        gens.append(create_simple_generator(k, v))
+    return MergeGenerator(gens)
+
+
+@ConfigLoader.register_function()
 def generate_toy(
     config,
     N=1000,
@@ -101,6 +116,8 @@ def generate_toy(
     if gen is None:
         if gen_p is not None:
 
+            extra_gen = get_extra_var_generator(config)
+
             def gen(N):
                 p = gen_p(N)
                 p = {
@@ -110,7 +127,11 @@ def generate_toy(
                 charge = gen_random_charge(N, include_charge)
                 ret = config.data.cal_angle(p, charge=charge)
                 ret["charge_conjugation"] = charge
-                return ret  # # cal_angle_from_momentum(p, config.get_decay(False))
+                extra_var = extra_gen.generate(N)
+                return {
+                    **ret,
+                    **extra_var,
+                }  # # cal_angle_from_momentum(p, config.get_decay(False))
 
         else:
 
@@ -250,7 +271,8 @@ def create_cal_calangle(config, include_charge=False):
 def get_phsp_generator(config, include_charge=False, nodes=[]):
     gen_p = get_phsp_p_generator(config, nodes=nodes)
     f_after = create_cal_calangle(config, include_charge=include_charge)
-    return AfterGenerator(gen_p, f_after)
+    extra_gen = get_extra_var_generator(config)
+    return MergeGenerator([AfterGenerator(gen_p, f_after), extra_gen])
 
 
 @ConfigLoader.register_function()

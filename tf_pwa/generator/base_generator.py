@@ -3,10 +3,10 @@ import numpy as np
 from tf_pwa.config import create_config
 from tf_pwa.generator import BaseGenerator
 
-register_generator, set_generator, get_generator = create_config()
+set_generator, get_generator, register_generator = create_config()
 
 
-def Simple1DGenerator(BaseGenerator):
+class Simple1DGenerator(BaseGenerator):
     def __init__(self, name, func, params):
         self.name = name
         self.func = func
@@ -17,7 +17,7 @@ def Simple1DGenerator(BaseGenerator):
         return {self.name: x}
 
 
-def Default1DGenerator(BaseGenerator):
+class DefaultGenerator(BaseGenerator):
     def __init__(self, name, value):
         self.name = name
         self.value = value
@@ -42,8 +42,8 @@ def create_simple_generator(name, params):
             func = getattr(np.random, model)
             return Simple1DGenerator(name, func, gen_params)
         if model == "default":
-            default_var = params["defualt"]
-            return Default1DGenerator(name, default_var)
+            default_var = params["default"]
+            return DefaultGenerator(name, value=default_var)
     else:
         return model_class(**gen_params)
     raise ValueError("not support model: {}".format(model))

@@ -128,10 +128,9 @@ def generate_toy(
                 ret = config.data.cal_angle(p, charge=charge)
                 ret["charge_conjugation"] = charge
                 extra_var = extra_gen.generate(N)
-                return {
-                    **ret,
-                    **extra_var,
-                }  # # cal_angle_from_momentum(p, config.get_decay(False))
+                for k, v in extra_var.items():
+                    ret[k] = v
+                return ret  # # cal_angle_from_momentum(p, config.get_decay(False))
 
         else:
 

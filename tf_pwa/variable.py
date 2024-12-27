@@ -185,8 +185,9 @@ class VarsManager(object):
 
     def _add_real_var(self, name, value=None, range_=None, trainable=True):
         if name in self.variables:  # not a new var
-            if name in self.trainable_vars:
-                self.trainable_vars.remove(name)
+            return
+            # if name in self.trainable_vars:
+            #    self.trainable_vars.remove(name)
             # warnings.warn("Overwrite variable {}!".format(name))
         if value is None:
             if range_ is None:  # random [0,1]
@@ -357,6 +358,11 @@ class VarsManager(object):
                 val = self.random_generator[name]()
             self.variables[name].assign(val)
 
+    def smear_vars(self, error_matrix):
+        mean = self.get_all_val()
+        new_mean = np.random.multivariate_normal(mean, error_matrix)
+        return dict(zip(self.trainable_vars, new_mean))
+
     def set_fix(self, name, value=None, unfix=False):
         """
         Fix or unfix a variable (change the trainability)
@@ -364,6 +370,8 @@ class VarsManager(object):
         :param value: The fixed value. It's useless if **unfix=True**.
         :param unfix: Boolean. If it's **True**, the variable will become trainable rather than be fixed.
         """
+        if name in self.same_var_map:
+            name = self.same_var_map[name]
         if value is None:
             if name in self.variables:
                 value = self.variables[name].value
@@ -377,6 +385,9 @@ class VarsManager(object):
         if name in self.variables:
             self.variables[name].assign(value)
             self.variables[name]._trainable = unfix
+        else:
+            warnings.warn("no veriable named as {} in free".format(name))
+            return
         if unfix:
             if name in self.trainable_vars:
                 warnings.warn("{} has been freed already!".format(name))

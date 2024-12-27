@@ -2,7 +2,9 @@
 This module implements classes and methods to manage the variables in fitting.
 """
 
+import abc
 import contextlib
+import random
 import warnings
 
 import numpy as np
@@ -11,6 +13,51 @@ import sympy as sy
 from .config import get_config, regist_config
 from .params_trans import ParamsTrans
 from .tensorflow_wrapper import tf
+
+
+class AbsParameterGenerator(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def __call__(self):
+        raise NotImplemented
+
+    def force_in_range(self, a, b):
+        idx = 0
+        while True:
+            idx += 1
+            if idx > 10000:
+                warnings.warn("max generate step, force to range center")
+                x = (a + b) / 2
+                break
+            x = self()
+            if a is not None and x < a:
+                continue
+            if b is not None and x > b:
+                continue
+        return x
+
+
+class FunParameterGenerator(AbsParameterGenerator):
+    def __init__(self, fun, *args, **kwargs):
+        self.fun = fun
+        self.args = args
+        self.kwargs = kwargs
+
+    def __call__(self):
+        return self.fun(*self.args, **self.kwargs)
+
+
+class FixVar(AbsParameterGenerator):
+    def __init__(self, value):
+        self.value = value
+
+    def __call__(self):
+        return self.value
+
+
+def _gen_from_random(name, *args, module=tf.random, **kwargs):
+    return FunParameterGenerator(
+        getattr(module, name), *args, shape=(), **kwargs
+    )
 
 
 def combineVM(vm1, vm2, name="", same_list=None):
@@ -118,6 +165,7 @@ class VarsManager(object):
         )  # {head:[name1,name2],...} It's operated directly by Variable objects
 
         self.init_val = {}
+        self.random_generator = {}
 
     def add_real_var(self, name, value=None, range_=None, trainable=True):
         """
@@ -140,30 +188,30 @@ class VarsManager(object):
             if name in self.trainable_vars:
                 self.trainable_vars.remove(name)
             # warnings.warn("Overwrite variable {}!".format(name))
-
         if value is None:
             if range_ is None:  # random [0,1]
-                self.variables[name] = tf.Variable(
-                    tf.random.uniform(
-                        shape=[], minval=0.0, maxval=1.0, dtype=self.dtype
-                    ),
-                    trainable=trainable,
-                )
-            else:  # random [a,b]
-                self.variables[name] = tf.Variable(
-                    tf.random.uniform(
-                        shape=[],
-                        minval=range_[0],
-                        maxval=range_[1],
-                        dtype=self.dtype,
-                    ),
-                    trainable=trainable,
-                )
+                range_ = [0.0, 1.0]
+            self.random_generator[name] = _gen_from_random(
+                "uniform", minval=range_[0], maxval=range_[1], dtype=self.dtype
+            )
+            self.variables[name] = tf.Variable(
+                self.random_generator[name](), trainable=trainable
+            )
         else:  # constant value
             # if name in self.bnd_dic:
             # value = self.bnd_dic[name].get_y2x(value)
+            if hasattr(value, "__len__"):
+                mu = value[0]
+                sigma = value[1]
+                self.random_generator[name] = _gen_from_random(
+                    "normal", mean=mu, stddev=sigma, dtype=self.dtype
+                )
+            else:
+                self.random_generator[name] = FixVar(value)
             self.variables[name] = tf.Variable(
-                value, dtype=self.dtype, trainable=trainable
+                self.random_generator[name](),
+                dtype=self.dtype,
+                trainable=trainable,
             )
             self.init_val[name] = value
 
@@ -188,7 +236,7 @@ class VarsManager(object):
         var_i = name + "i"
         if trainable:
             if polar:
-                self.add_real_var(name=var_r, range_=(0, 2.0))
+                self.add_real_var(name=var_r, range_=(0.0, 2.0))
                 self.add_real_var(name=var_i, range_=(-np.pi, np.pi))
             else:
                 self.add_real_var(name=var_r, range_=(-1, 1))
@@ -244,25 +292,8 @@ class VarsManager(object):
         """
         if name in self.complex_vars:
             del self.complex_vars[name]
-            name_r = name + "r"
-            name_i = name + "i"
-            if self.variables[name_r].trainable:
-                if name_r in self.trainable_vars:
-                    self.trainable_vars.remove(name_r)
-            if self.variables[name_i].trainable:
-                if name_i in self.trainable_vars:
-                    self.trainable_vars.remove(name_i)
-            for l in self.same_list:
-                if name_r in l:
-                    l.remove(name_r)
-                if name_i in l:
-                    l.remove(name_i)
-            if name_r in self.bnd_dic:
-                del self.bnd_dic[name_r]
-            if name_i in self.bnd_dic:
-                del self.bnd_dic[name_i]
-            del self.variables[name_r]
-            del self.variables[name_i]
+            self.remove_var(name + "r")
+            self.remove_var(name + "i")
         else:
             if self.variables[name].trainable:
                 if name in self.trainable_vars:
@@ -289,31 +320,8 @@ class VarsManager(object):
             name_i = name + "i"
             new_name_r = new_name + "r"
             new_name_i = new_name + "i"
-            if self.variables[name_r].trainable:
-                if name_r in self.trainable_vars:
-                    self.trainable_vars.remove(name_r)
-                    self.trainable_vars.append(new_name_r)
-            if self.variables[name_i].trainable:
-                if name_i in self.trainable_vars:
-                    self.trainable_vars.remove(name_i)
-                    self.trainable_vars.append(new_name_i)
-            for l in self.same_list:
-                if name_r in l:
-                    l.remove(name_r)
-                    l.append(new_name_r)
-                if name_i in l:
-                    l.remove(name_i)
-                    l.append(new_name_i)
-            if name_r in self.bnd_dic:
-                self.bnd_dic[new_name_r] = self.bnd_dic[name_r]
-                del self.bnd_dic[name_r]
-            if name_i in self.bnd_dic:
-                self.bnd_dic[new_name_i] = self.bnd_dic[name_i]
-                del self.bnd_dic[name_i]
-            self.variables[new_name_r] = self.variables[name_r]
-            del self.variables[name_r]
-            self.variables[new_name_i] = self.variables[name_i]
-            del self.variables[name_i]
+            self.rename_var(name_r, new_name_r)
+            self.rename_var(name_i, new_name_i)
         else:
             if self.variables[name].trainable:
                 self.trainable_vars.remove(name)
@@ -328,90 +336,25 @@ class VarsManager(object):
             self.variables[new_name] = self.variables[name]
             del self.variables[name]
 
+    def regenerate_var(self, name, force=False):
+        if force or name in self.trainable_vars:
+            self.variables[name].assign(self.random_generator[name]())
+
     def refresh_vars(self, init_val=None, bound_dic=None):
         """
         Refresh all trainable variables
         """
-        if bound_dic is None:
-            bound_dic = self.bnd_dic
-        if init_val is None:
-            init_val = self.init_val
-        cplx_vars = []
-        for name in self.complex_vars:  # complex vars
-            name_r = name + "r"
-            name_i = name + "i"
-            if self.complex_vars[name] == False:  # xy coordinate
-                if name_r in self.trainable_vars:
-                    cplx_vars.append(name_r)
-                    self.variables[name_r].assign(
-                        tf.random.uniform(
-                            shape=[], minval=-1, maxval=1, dtype=self.dtype
-                        )
-                    )
-                if name_i in self.trainable_vars:
-                    cplx_vars.append(name_i)
-                    self.variables[name_i].assign(
-                        tf.random.uniform(
-                            shape=[], minval=-1, maxval=1, dtype=self.dtype
-                        )
-                    )
-            else:  # polar coordinate
-                if name_r in self.trainable_vars:
-                    cplx_vars.append(name_r)
-                    self.variables[name_r].assign(
-                        tf.random.uniform(
-                            shape=[], minval=0, maxval=2, dtype=self.dtype
-                        )
-                    )
-                if name_i in self.trainable_vars:
-                    cplx_vars.append(name_i)
-                    self.variables[name_i].assign(
-                        tf.random.uniform(
-                            shape=[],
-                            minval=-np.pi,
-                            maxval=np.pi,
-                            dtype=self.dtype,
-                        )
-                    )
-        # all_vars = set(self.trainable_vars) # real vars
-        # real_vars = all_vars - set(cplx_vars)
-        for name in set(init_val) & set(self.trainable_vars):
-            if hasattr(init_val[name], "__len__"):
-                mu = init_val[name][0]
-                sigma = init_val[name][1]
-                if name not in bound_dic:
-                    val = tf.random.normal(
-                        shape=[], mean=mu, stddev=sigma, dtype=self.dtype
-                    )
-                else:
-                    range_lower, range_upper = bound_dic[name]
-                    while True:
-                        val = tf.random.normal(
-                            shape=[], mean=mu, stddev=sigma, dtype=self.dtype
-                        )
-                        if val < range_upper and val > range_lower:
-                            break
-                self.variables[name].assign(val)
+        if bound_dic is not None:
+            self.set_bound(bound_dic)
+        for name in self.trainable_vars:
+            if init_val is not None and name in init_val:
+                val = init_val[name]
+            elif bound_dic is not None and name in bound_dic:
+                val = self.random_generator[name].force_in_range(
+                    *bound_dic[name]
+                )
             else:
-                if init_val[name] is not None:
-                    self.variables[name].assign(init_val[name])
-
-        for name in set(bound_dic) - set(init_val):
-            _min, _max = bound_dic[name]
-            if name not in self.trainable_vars:
-                continue
-            if _min is not None:
-                if _max is not None:
-                    val = tf.random.uniform(
-                        shape=[], minval=_min, maxval=_max, dtype=self.dtype
-                    )
-                else:
-                    val = _min + np.random.chisquare(df=1)
-            else:
-                if _max is not None:
-                    val = _max - np.random.chisquare(df=1)
-                else:
-                    break
+                val = self.random_generator[name]()
             self.variables[name].assign(val)
 
     def set_fix(self, name, value=None, unfix=False):
@@ -458,6 +401,21 @@ class VarsManager(object):
                 if not overwrite:
                     warnings.warn("Overwrite bound of {}!".format(name))
             self.bnd_dic[name] = Bound(*bound_dic[name], func=func)
+            a, b = bound_dic[name]
+            if a is None and b is not None:
+                self.random_generator[name] = FunParameterGenerator(
+                    lambda: b - np.random.chisquare(df=1)
+                )
+            elif a is not None and b is None:
+                self.random_generator[name] = FunParameterGenerator(
+                    lambda: a + np.random.chisquare(df=1)
+                )
+            elif a is not None and b is not None:
+                self.random_generator[name] = _gen_from_random(
+                    "uniform", minval=a, maxval=b, dtype=self.dtype
+                )
+            else:  # not overwrite
+                pass
             if name in self.variables:
                 has_same = False
                 for i in self.same_list:

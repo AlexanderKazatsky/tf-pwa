@@ -524,3 +524,14 @@ def test_factor_hel():
     amp(phsp)
     amp.get_amp_list_part(phsp)
     amp.decay_group.get_factor()
+
+
+def test_smear_params(toy_config, fit_result):
+    toy_config.get_params_error(fit_result)
+    phsp = toy_config.generate_phsp(10)
+    amp = toy_config.get_amplitude()
+    ret = []
+    for i in range(10):
+        with amp.temp_params(toy_config.gen_smear_params()):
+            ret.append(tf.reduce_sum(amp(phsp)).numpy())
+    std = np.std(ret)

@@ -813,6 +813,11 @@ class ConfigLoader(BaseConfig):
         vm = self.get_amplitude().vm
         vm.refresh_vars(init_val=self.init_value, bound_dic=self.bound_dic)
 
+    def gen_smear_params(self, cov=None):
+        if cov is None and self.inv_he is not None:
+            cov = self.inv_he
+        return self.vm.smear_vars(cov)
+
     def fitNtimes(self, N, *args, **kwargs):
         for i in range(N):
             self.reinit_params()

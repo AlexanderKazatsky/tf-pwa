@@ -41,35 +41,45 @@ from tf_pwa.variable import Variable, VarsManager
 
 
 PARTICLE_MODEL = "particle_model"
-regist_config(PARTICLE_MODEL, {})
 DECAY_MODEL = "decay_model"
-regist_config(DECAY_MODEL, {})
 DECAY_CHAIN_MODEL = "decay_chain_model"
-regist_config(DECAY_CHAIN_MODEL, {})
+regist_config(DECAY_MODEL, {})
 
 
-def register_particle(name=None, f=None):
-    """register a particle model
+def _create_register(model_name, var):
+    regist_config(var, {})
 
-    :params name: model name used in configuration
-    :params f: Model class
-    """
+    def _register(name=None, f=None):
 
-    def regist(g):
-        if name is None:
-            my_name = g.__name__
-        else:
-            my_name = name
-        config = get_config(PARTICLE_MODEL)
-        if my_name in config:
-            warnings.warn("Override model {}".format(my_name))
-        config[my_name] = g
-        g.model_name = my_name
-        return g
+        def regist(g):
+            if name is None:
+                my_name = g.__name__
+            else:
+                my_name = name
+            config = get_config(var)
+            if my_name in config:
+                warnings.warn("Override {} {}".format(model_name, my_name))
+            config[my_name] = g
+            g.model_name = my_name
+            return g
 
-    if f is None:
-        return regist
-    return regist(f)
+        if f is None:
+            return regist
+        return regist(f)
+
+    _register.__doc__ = """register a {}
+
+        :params name: model name used in configuration
+        :params f: Model class
+    """.format(
+        model_name
+    )
+
+    return _register
+
+
+register_particle = _create_register("particle model", PARTICLE_MODEL)
+register_decay_chain = _create_register("decay chain model", DECAY_CHAIN_MODEL)
 
 
 def register_decay(name=None, num_outs=2, f=None):
@@ -86,31 +96,6 @@ def register_decay(name=None, num_outs=2, f=None):
             my_name = name
         config = get_config(DECAY_MODEL)
         id_ = (num_outs, my_name)
-        if id_ in config:
-            warnings.warn("Override deccay model {}".format(my_name))
-        config[id_] = g
-        g.model_name = my_name
-        return g
-
-    if f is None:
-        return regist
-    return regist(f)
-
-
-def register_decay_chain(name=None, f=None):
-    """register a decay model
-
-    :params name: model name used in configuration
-    :params f: Model class
-    """
-
-    def regist(g):
-        if name is None:
-            my_name = g.__name__
-        else:
-            my_name = name
-        config = get_config(DECAY_CHAIN_MODEL)
-        id_ = my_name
         if id_ in config:
             warnings.warn("Override deccay model {}".format(my_name))
         config[id_] = g
@@ -707,6 +692,8 @@ class HelicityDecay(AmpDecay):
 
     (6). `no_q0=True` will set the :math:`q_0=1`.
 
+    (7). `add_covariant_term=True` will add :math:`m_A^n f_{\lambda_B}^{j_B}(\gamma_B)f_{\lambda_C}^{j_C}(\gamma_C)` as Eq.64 in `PhysRevD.57.431 <https://inspirehep.net/literature/448883>`_
+
     """
 
     def __init__(
@@ -728,6 +715,7 @@ class HelicityDecay(AmpDecay):
         no_q0=False,
         helicity_inner_full=False,
         ls_selector=None,
+        add_covariant_term=False,
         **kwargs
     ):
         super(HelicityDecay, self).__init__(*args, **kwargs)
@@ -753,6 +741,7 @@ class HelicityDecay(AmpDecay):
         self.no_q0 = no_q0
         self.helicity_inner_full = helicity_inner_full
         self.ls_selector = ls_selector
+        self.add_covariant_term = add_covariant_term
 
     def get_params_head(self):
         if self.params_head is None:
@@ -1032,33 +1021,11 @@ class HelicityDecay(AmpDecay):
             return tf.ones_like(ret)
         return ret
 
-    def get_ls_amp_org(self, data, data_p, **kwargs):
-        g_ls = self.get_g_ls()
-        # print(g_ls)
-        q0 = self.get_relative_momentum(data_p, False)
-        data["|q0|"] = q0
-        if "|q|" in data:
-            q = data["|q|"]
-        else:
-            q = self.get_relative_momentum(data_p, True)
-            data["|q|"] = q
-        if self.has_barrier_factor:
-            bf = self.get_barrier_factor(data_p[self.core]["m"], q, q0, self.d)
-            mag = g_ls
-            m_dep = mag * tf.cast(bf, mag.dtype)
-        else:
-            m_dep = tf.reshape(g_ls, (1, -1))
-        return m_dep
-
     def get_ls_amp(self, data, data_p, **kwargs):
         g_ls = self.get_g_ls()
         q0 = self.get_relative_momentum2(data_p, False)
         data["|q0|2"] = q0
-        if "|q|2" in data:
-            q = data["|q|2"]
-        else:
-            q = self.get_relative_momentum2(data_p, True)
-            data["|q|2"] = q
+        q = self.cache_relative_p2(data, data_p)
         if self.has_barrier_factor:
             bf = self.get_barrier_factor2(
                 data_p[self.core]["m"], q, q0, self.d
@@ -1081,22 +1048,6 @@ class HelicityDecay(AmpDecay):
         g_ls = self.get_angle_g_ls()
         return g_ls
 
-    def get_barrier_factor(self, mass, q, q0, d):
-        ls = self.get_l_list()
-        ret = []
-        for l in ls:
-            if self.force_min_l:
-                l = min(ls)
-            if self.has_bprime:
-                tmp = q**l * tf.cast(Bprime(l, q, q0, d), dtype=q.dtype)
-            else:
-                tmp = q**l
-            # tmp = tf.where(q > 0, tmp, tf.zeros_like(tmp))
-            ret.append(tf.reshape(tmp, (-1, 1)))
-        ret = tf.concat(ret, axis=-1)
-        mass_dep = self.get_barrier_factor_mass(mass)
-        return ret * mass_dep
-
     def get_barrier_factor2(self, mass, q2, q02, d):
         ls = self.get_l_list()
         if self.no_q0:
@@ -1118,6 +1069,11 @@ class HelicityDecay(AmpDecay):
                     tmp = q2 ** (l / 2)
                 else:
                     tmp = tf.ones_like(q2)
+            if self.add_covariant_term:
+                if (
+                    l - self.core.J + self.outs[0].J + +self.outs[0].J
+                ) % 2 == 1:
+                    tmp *= mass
             # tmp = tf.where(q > 0, tmp, tf.zeros_like(tmp))
             ret.append(tf.reshape(tmp, (-1, 1)))
         ret = tf.concat(ret, axis=-1)
@@ -1175,13 +1131,7 @@ class HelicityDecay(AmpDecay):
         return ret
 
     def get_amp(self, data, data_p, **kwargs):
-        a = self.core
-        b = self.outs[0]
-        c = self.outs[1]
-        ang = data[b]["ang"]
-        D_conj = get_D_matrix_lambda(
-            ang, a.J, a.spins, *self.list_helicity_inner()
-        )
+        D_conj = self.get_D_matrix_term(data, data_p, **kwargs)
         H = self.get_helicity_amp(data, data_p, **kwargs)
         H = tf.reshape(H, (-1, 1, *self.n_helicity_inner()))
         H = tf.cast(H, dtype=D_conj.dtype)
@@ -1191,7 +1141,7 @@ class HelicityDecay(AmpDecay):
         self.add_algin(ret, data)
         return ret
 
-    def get_angle_amp(self, data, data_p, **kwargs):
+    def get_D_matrix_term(self, data, data_p, **kwargs):
         a = self.core
         b = self.outs[0]
         c = self.outs[1]
@@ -1199,6 +1149,39 @@ class HelicityDecay(AmpDecay):
         D_conj = get_D_matrix_lambda(
             ang, a.J, a.spins, *self.list_helicity_inner()
         )
+        if self.add_covariant_term:
+            q2 = self.cache_relative_p2(data, data_p)
+            gamma_b = tf.sqrt(1 + q2 / data_p[b]["m"] ** 2)
+            gamma_c = tf.sqrt(1 + q2 / data_p[c]["m"] ** 2)
+            from tf_pwa.cov_ten_ir import covariant_hel_term
+
+            fb = tf.cast(
+                covariant_hel_term(b.J, b.spins, gamma_b), D_conj.dtype
+            )
+            fc = tf.cast(
+                covariant_hel_term(c.J, c.spins, gamma_c), D_conj.dtype
+            )
+            D_conj = D_conj * fb[..., None, :, None] * fc[..., None, None, :]
+        return D_conj
+
+    def cache_relative_p2(self, data, data_p):
+        if "|q|2" in data:
+            q = data["|q|2"]
+        else:
+            q = self.get_relative_momentum2(data_p, True)
+            data["|q|2"] = q
+        return q
+
+    def cache_relative_p(self, data, data_p):
+        if "|q|" in data:
+            q = data["|q|"]
+        else:
+            q = self.get_relative_momentum(data_p, True)
+            data["|q|"] = q
+        return q
+
+    def get_angle_amp(self, data, data_p, **kwargs):
+        D_conj = self.get_D_matrix_term(data, data_p, **kwargs)
         H = self.get_angle_helicity_amp(data, data_p, **kwargs)
         H = tf.reshape(H, (-1, 1, *self.n_helicity_inner()))
         H = tf.cast(H, dtype=D_conj.dtype)
@@ -1209,13 +1192,7 @@ class HelicityDecay(AmpDecay):
         return ret
 
     def get_factor_angle_amp(self, data, data_p, **kwargs):
-        a = self.core
-        b = self.outs[0]
-        c = self.outs[1]
-        ang = data[b]["ang"]
-        D_conj = get_D_matrix_lambda(
-            ang, a.J, a.spins, *self.list_helicity_inner()
-        )
+        D_conj = self.get_D_matrix_term(data, data_p, **kwargs)
         H = self.get_factor_angle_helicity_amp(data, data_p, **kwargs)
         H = tf.cast(H, dtype=D_conj.dtype)
         D_conj = tf.reshape(D_conj, (-1, 1, *D_conj.shape[1:]))

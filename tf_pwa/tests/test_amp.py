@@ -269,6 +269,7 @@ def test_model2():
 def test_model3():
     simple_run3("gls-bf", below_threshold=True)
     simple_run3("gls-bf", force_min_l=True)
+    simple_run3("gls-bf", add_covariant_term=True)
 
 
 def test_model_new():

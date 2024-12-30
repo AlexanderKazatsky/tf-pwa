@@ -38,8 +38,28 @@ def register_preprocessor(name=None, f=None):
 
 
 def create_preprocessor(decay_group, **kwargs):
-    mode = kwargs.get("model", "default")
-    return get_config(PREPROCESSOR_MODEL)[mode](decay_group, **kwargs)
+    model = kwargs.get("model", "default")
+    if "model" in kwargs:
+        del kwargs["model"]
+    if isinstance(model, (tuple, list)):
+        ret = []
+        for model_i in model:
+            ret.append(
+                create_preprocessor(decay_group, model=model_i, **kwargs)
+            )
+        return SeqPreProcessor(ret)
+    elif isinstance(model, dict):
+        assert len(model.keys()) == 1
+        name = list(model.keys())[0]
+        new_kwargs = kwargs.copy()
+        new_kwargs.update(model[name])
+        return create_preprocessor(decay_group, model=name, **new_kwargs)
+    elif isinstance(model, str):
+        return get_config(PREPROCESSOR_MODEL)[model](
+            decay_group, model=model, **kwargs
+        )
+    else:
+        raise TypeError("not support model type : {}".format(type(model)))
 
 
 @register_preprocessor("default")
@@ -75,6 +95,16 @@ def list_to_tuple(data):
     if isinstance(data, list):
         return tuple([list_to_tuple(i) for i in data])
     return data
+
+
+class SeqPreProcessor(BasePreProcessor):
+    def __init__(self, preprocessors):
+        self.preprocessors = preprocessors
+
+    def __call__(self, x):
+        for f in self.preprocessors:
+            x = f(x)
+        return x
 
 
 @register_preprocessor("cached_amp")
@@ -172,3 +202,34 @@ class CachedAmpPreProcessor(BasePreProcessor):
 
     def __call__(self, x):
         return {"p4": x["p4"]}
+
+
+@register_preprocessor("add_dalitz_var")
+class AddDalitzVarPreProcessor(BasePreProcessor):
+    def __init__(self, *args, particles=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if particles is None:
+            particles = self.decay_struct.outs
+        assert len(particles) == 3, "Dlatiz plot require 3 final particles"
+        self.particles = [self.decay_struct.get_particle(i) for i in particles]
+        self.decay = self.find_decay(self.particles)
+        top_map = self.decay.topology_map(self.decay.standard_topology())
+        self.index_particles = [top_map[i] for i in self.particles]
+
+    def find_decay(self, particles):
+        return self.decay_struct[0]
+
+    def __call__(self, x):
+        from tf_pwa.angle import LorentzVector as lv
+
+        pi = [x["particle"][i]["p"] for i in self.index_particles]
+        x["dalitz_var"] = {
+            "s12": lv.M2(pi[0] + pi[1]),
+            "s13": lv.M2(pi[0] + pi[2]),
+            "s23": lv.M2(pi[2] + pi[1]),
+            "m0": lv.M(pi[0] + pi[1] + pi[2]),
+            "m1": lv.M(pi[0]),
+            "m2": lv.M(pi[1]),
+            "m3": lv.M(pi[2]),
+        }
+        return x

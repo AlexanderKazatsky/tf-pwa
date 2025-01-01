@@ -1889,7 +1889,7 @@ class DecayGroup(BaseDecayGroup, AmpBase):
 
     def get_amp3(self, data):
         amp = self.get_amp2(data)
-        if "cp_swap" in data:
+        if "cp_swap" in data and self.cp_particles:
             amp_swap = self.get_amp2(data["cp_swap"])
             cg = cp_charge_group(
                 [str(i) for i in self.outs],

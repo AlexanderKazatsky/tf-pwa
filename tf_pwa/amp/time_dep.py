@@ -157,3 +157,69 @@ class TimeDepParamsAmplitudeModel(BaseAmplitudeModel):
         ret1 = tf.abs(gp * A + phase * gm * Abar) ** 2
         ret2 = tf.abs(1 / phase * gm * A + gp * Abar) ** 2
         return tf.where(tag > 0, ret1, ret2)
+
+
+@register_amp_model("time_dep_cp")
+class TimeDepCpAmplitudeModel(BaseAmplitudeModel):
+    """
+    Implement time effect `arxiv:0904.1869 <https://arxiv.org/abs/0904.1869>`_
+    Require to use decay model `time_dep_params`.
+
+    """
+
+    def init_params(self, *args, **kwargs):
+        super().init_params()
+        top = self.decay_group.top
+        top.delta_m = top.add_var("delta_m", value=0.0)
+        top.delta_gamma = top.add_var("delta_gamma", value=0.0)
+        top.life_time = top.add_var("life_time", value=1.0)
+        top.poq = top.add_var(
+            "poq", is_complex=True, fix=True, fix_vals=(1.0, 0.0)
+        )
+
+    def pdf(self, data):
+        top = self.decay_group.top
+        ones = tf.ones((data_shape(data),), dtype=get_config("dtype"))
+        A = self.decay_group.get_amp(data)
+        Abar = self.decay_group.get_amp(data["cp_swap"])
+        t = data.get("time", 0.0 * ones)
+        gp, gm = cal_gp_gm(
+            t, 1 / top.life_time(), top.delta_m(), top.delta_gamma()
+        )
+
+        A = tf.reshape(A, (-1,))
+        Abar = tf.reshape(Abar, (-1,))
+        tag = data.get("tag", ones)
+        phase = top.poq()
+        ret1 = tf.abs(gp * A + phase * gm * Abar) ** 2
+        ret2 = tf.abs(1 / phase * gm * A + gp * Abar) ** 2
+        return tf.where(tag > 0, ret1, ret2)
+
+
+def fix_cp_params(config, r1, r2):
+    # only work for dalitz plot (all J=0 for initial and final particles)
+    config.get_params()  # asume parameters exist
+    fix_params = {}
+    same_var = []
+    free_var = []
+    for a, b in zip(r1, r2):
+        chain_a = config.get_decay().get_decay_chain(a)
+        chain_b = config.get_decay().get_decay_chain(b)
+        dec1 = [i for i in chain_a if i.core == chain_a.top][0]
+        dec2 = [i for i in chain_b if i.core == chain_b.top][0]
+        dec1.g_ls.sameas(dec2.g_ls_bar)
+        dec2.g_ls.sameas(dec1.g_ls_bar)
+        if not (chain_a.total.is_fixed()):
+            dec1.g_ls.set_fix_idx(free_idx=0)
+        if not (chain_b.total.is_fixed()):
+            dec2.g_ls.set_fix_idx(free_idx=0)
+        chain_a.total.sameas(chain_b.total)
+        chain_a.total.set_fix_idx(0, fix_vals=1.0)
+    for i in config.get_decay().resonances:
+        if str(i) not in r1 and str(i) not in r2:
+            chain = config.get_decay().get_decay_chain(i)
+            dec = [i for i in chain if i.core == chain.top][0]
+            if i.J % 2 == 1:  # (-1)^l
+                dec.g_ls_bar.set_fix_idx(0, fix_vals=-1.0)
+            else:
+                dec.g_ls_bar.set_fix_idx(0, fix_vals=1.0)

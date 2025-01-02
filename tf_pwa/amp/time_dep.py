@@ -153,9 +153,7 @@ class TimeDepParamsAmplitudeModel(BaseAmplitudeModel):
         top = self.decay_group.top
         ones = tf.ones((1,), dtype=get_config("dtype"))
         t = data.get("time", 0.0 * ones)
-        gp, gm = cal_gp_gm(
-            t, 1 / top.life_time(), top.delta_m(), top.delta_gamma()
-        )
+        gp, gm = cal_gp_gm(t, top.gamma(), top.delta_m(), top.delta_gamma())
         n_pad = len(A.shape) - len(t.shape)
         phase = top.poq()
         for i in range(n_pad):

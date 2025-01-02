@@ -96,7 +96,7 @@ class TimeDepHelicityDecay(TimeDepParamsHelicityDecay):
         super().init_params(*args, **kwargs)
         self.core.delta_m = self.core.add_var("delta_m", value=0.0)
         self.core.delta_gamma = self.core.add_var("delta_gamma", value=0.0)
-        self.core.life_time = self.core.add_var("life_time", value=1.0)
+        self.core.gamma = self.core.add_var("gamma", value=1.0)
         self.core.poq = self.core.add_var(
             "poq", is_complex=True, fix=True, fix_vals=(1.0, 0.0)
         )
@@ -110,7 +110,7 @@ class TimeDepHelicityDecay(TimeDepParamsHelicityDecay):
         t = all_data.get("time", 0.0 * ones)
         gp, gm = cal_gp_gm(
             t,
-            1 / self.core.life_time(),
+            self.core.gamma(),
             self.core.delta_m(),
             self.core.delta_gamma(),
         )
@@ -135,7 +135,7 @@ class TimeDepParamsAmplitudeModel(BaseAmplitudeModel):
         top = self.decay_group.top
         top.delta_m = top.add_var("delta_m", value=0.0)
         top.delta_gamma = top.add_var("delta_gamma", value=0.0)
-        top.life_time = top.add_var("life_time", value=1.0)
+        top.gamma = top.add_var("gamma", value=1.0)
         top.poq = top.add_var(
             "poq", is_complex=True, fix=True, fix_vals=(1.0, 0.0), polar=True
         )
@@ -185,7 +185,7 @@ class TimeDepCpAmplitudeModel(TimeDepParamsAmplitudeModel):
     def init_params(self, *args, **kwargs):
         super().init_params(*args, **kwargs)
         top = self.decay_group.top
-        top.poq.vm.set_fix(str(top.poq) + "i", unfix=True)
+        top.poq.freed()
 
     def eval_A_Abar(self, data):
         A = self.decay_group.get_amp(data)

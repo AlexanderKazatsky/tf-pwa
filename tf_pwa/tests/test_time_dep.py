@@ -10,7 +10,7 @@ this_dir = os.path.dirname(os.path.abspath(__file__))
 
 def test_time_dep():
     config = ConfigLoader(f"{this_dir}/config_time_dep.yml")
-    config.set_params({"A_life_time": 1.5, "A_delta_m": 0.5, "A_poqi": -0.77})
+    config.set_params({"A_gamma": 1 / 1.5, "A_delta_m": 0.5, "A_poqi": -0.77})
     amp = config.get_amplitude()
 
     config2 = ConfigLoader(f"{this_dir}/config_time_dep2.yml")
@@ -25,7 +25,7 @@ def test_time_dep():
 def test_time_dep_cp():
     config = ConfigLoader(f"{this_dir}/config_time_dep.yml")
     fix_cp_params(config, ["R_BD"], ["R_CD"])
-    config.set_params({"A_life_time": 1.5, "A_delta_m": 0.5, "A_poqi": -0.77})
+    config.set_params({"A_gamma": 1 / 1.5, "A_delta_m": 0.5, "A_poqi": -0.77})
     amp = config.get_amplitude()
 
     config2 = ConfigLoader(f"{this_dir}/config_time_dep2.yml")

@@ -9,10 +9,10 @@ from tf_pwa.data import data_shape
 def cal_gp_gm(t, gamma, delta_m, delta_gamma):
     r"""
     .. math::
-        g_{+}(t) = \left[\cosh\frac{\Delta\Gamma t}{4}\cos\frac{\Delta mt}{2}-i\sinh\frac{\Delta\Gamma t}{4}\sin\frac{\Delta mt}{2}\right]\exp\left[-i mt\right]\exp\left[-\frac{\Gamma t}{2}\right],
+        g_{+}(t) = \left[\cosh\frac{\Delta\Gamma t}{4}\cos\frac{\Delta mt}{2}-i\sinh\frac{\Delta\Gamma t}{4}\sin\frac{\Delta mt}{2}\right]\exp\left[-\frac{\Gamma t}{2}\right],
 
     .. math::
-        g_{-}(t) = \left[-\sinh\frac{\Delta\Gamma t}{4}\cos\frac{\Delta mt}{2}+i\cosh\frac{\Delta\Gamma t}{4}\sin\frac{\Delta mt}{2}\right]\exp\left[-i mt\right]\exp\left[-\frac{\Gamma t}{2}\right].
+        g_{-}(t) = \left[-\sinh\frac{\Delta\Gamma t}{4}\cos\frac{\Delta mt}{2}+i\cosh\frac{\Delta\Gamma t}{4}\sin\frac{\Delta mt}{2}\right]\exp\left[-\frac{\Gamma t}{2}\right].
 
     :math:`\exp\left[-i mt\right]` is not included, since its has :math:`|A|=1`.
 
@@ -92,8 +92,8 @@ class TimeDepHelicityDecay(TimeDepParamsHelicityDecay):
 
     """
 
-    def init_params(self):
-        super().init_params()
+    def init_params(self, *args, **kwargs):
+        super().init_params(*args, **kwargs)
         self.core.delta_m = self.core.add_var("delta_m", value=0.0)
         self.core.delta_gamma = self.core.add_var("delta_gamma", value=0.0)
         self.core.life_time = self.core.add_var("life_time", value=1.0)
@@ -137,74 +137,77 @@ class TimeDepParamsAmplitudeModel(BaseAmplitudeModel):
         top.delta_gamma = top.add_var("delta_gamma", value=0.0)
         top.life_time = top.add_var("life_time", value=1.0)
         top.poq = top.add_var(
-            "poq", is_complex=True, fix=True, fix_vals=(1.0, 0.0)
+            "poq", is_complex=True, fix=True, fix_vals=(1.0, 0.0), polar=True
         )
 
-    def pdf(self, data):
+    def eval_A_Abar(self, data):
         top = self.decay_group.top
-        ones = tf.ones((data_shape(data),), dtype=get_config("dtype"))
+        ones = tf.ones((1,), dtype=get_config("dtype"))
         A = self.decay_group.get_amp({**data, "tag": ones})
         Abar = self.decay_group.get_amp({**data, "tag": -ones})
+        return A, Abar
+
+    def eval_A_Abar_time(self, data):
+        A, Abar = self.eval_A_Abar(data)
+
+        top = self.decay_group.top
+        ones = tf.ones((1,), dtype=get_config("dtype"))
         t = data.get("time", 0.0 * ones)
         gp, gm = cal_gp_gm(
             t, 1 / top.life_time(), top.delta_m(), top.delta_gamma()
         )
-
-        A = tf.reshape(A, (-1,))
-        Abar = tf.reshape(Abar, (-1,))
-        tag = data.get("tag", ones)
+        n_pad = len(A.shape) - len(t.shape)
         phase = top.poq()
-        ret1 = tf.abs(gp * A + phase * gm * Abar) ** 2
-        ret2 = tf.abs(1 / phase * gm * A + gp * Abar) ** 2
+        for i in range(n_pad):
+            gp = tf.expand_dims(gp, -1)
+            gm = tf.expand_dims(gm, -1)
+        ret1 = gp * A + phase * gm * Abar
+        ret2 = 1 / phase * gm * A + gp * Abar
+        return ret1, ret2
+
+    def pdf(self, data):
+        A, Abar = self.eval_A_Abar_time(data)
+        ret1 = self.decay_group.sum_with_polarization(A)
+        ret2 = self.decay_group.sum_with_polarization(Abar)
+        ones = tf.ones((1,), dtype=get_config("dtype"))
+        tag = data.get("tag", ones)
         return tf.where(tag > 0, ret1, ret2)
 
 
 @register_amp_model("time_dep_cp")
-class TimeDepCpAmplitudeModel(BaseAmplitudeModel):
+class TimeDepCpAmplitudeModel(TimeDepParamsAmplitudeModel):
     """
-    Implement time effect `arxiv:0904.1869 <https://arxiv.org/abs/0904.1869>`_
-    Require to use decay model `time_dep_params`.
+
+    Time dependent amplitude with self-CP related process, the Abar will calculate through :math:`\\bar{A}(p_{+}, p_{-}, p_{0}) = A(-p_{-}, -p_{+}, -p_{0})`
 
     """
 
     def init_params(self, *args, **kwargs):
-        super().init_params()
+        super().init_params(*args, **kwargs)
         top = self.decay_group.top
-        top.delta_m = top.add_var("delta_m", value=0.0)
-        top.delta_gamma = top.add_var("delta_gamma", value=0.0)
-        top.life_time = top.add_var("life_time", value=1.0)
-        top.poq = top.add_var(
-            "poq", is_complex=True, fix=True, fix_vals=(1.0, 0.0)
-        )
+        top.poq.vm.set_fix(str(top.poq) + "i", unfix=True)
 
-    def pdf(self, data):
-        top = self.decay_group.top
-        ones = tf.ones((data_shape(data),), dtype=get_config("dtype"))
+    def eval_A_Abar(self, data):
         A = self.decay_group.get_amp(data)
         Abar = self.decay_group.get_amp(data["cp_swap"])
-        t = data.get("time", 0.0 * ones)
-        gp, gm = cal_gp_gm(
-            t, 1 / top.life_time(), top.delta_m(), top.delta_gamma()
-        )
-
-        A = tf.reshape(A, (-1,))
-        Abar = tf.reshape(Abar, (-1,))
-        tag = data.get("tag", ones)
-        phase = top.poq()
-        ret1 = tf.abs(gp * A + phase * gm * Abar) ** 2
-        ret2 = tf.abs(1 / phase * gm * A + gp * Abar) ** 2
-        return tf.where(tag > 0, ret1, ret2)
+        return A, Abar
 
 
 def fix_cp_params(config, r1, r2):
-    # only work for dalitz plot (all J=0 for initial and final particles)
+    """
+    using the same paramters for A and Abar
+
+    only work for dalitz plot (all J=0 for initial and final particles)
+
+    """
     config.get_params()  # asume parameters exist
+    decay_group = config.get_decay()
     fix_params = {}
     same_var = []
     free_var = []
     for a, b in zip(r1, r2):
-        chain_a = config.get_decay().get_decay_chain(a)
-        chain_b = config.get_decay().get_decay_chain(b)
+        chain_a = decay_group.get_decay_chain(a)
+        chain_b = decay_group.get_decay_chain(b)
         dec1 = [i for i in chain_a if i.core == chain_a.top][0]
         dec2 = [i for i in chain_b if i.core == chain_b.top][0]
         dec1.g_ls.sameas(dec2.g_ls_bar)
@@ -215,9 +218,9 @@ def fix_cp_params(config, r1, r2):
             dec2.g_ls.set_fix_idx(free_idx=0)
         chain_a.total.sameas(chain_b.total)
         chain_a.total.set_fix_idx(0, fix_vals=1.0)
-    for i in config.get_decay().resonances:
+    for i in decay_group.resonances:
         if str(i) not in r1 and str(i) not in r2:
-            chain = config.get_decay().get_decay_chain(i)
+            chain = decay_group.get_decay_chain(i)
             dec = [i for i in chain if i.core == chain.top][0]
             if i.J % 2 == 1:  # (-1)^l
                 dec.g_ls_bar.set_fix_idx(0, fix_vals=-1.0)

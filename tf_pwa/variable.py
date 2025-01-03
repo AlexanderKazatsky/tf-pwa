@@ -479,6 +479,10 @@ class VarsManager(object):
         :param name_list: List of strings. Name of the variables.
         :param cplx: Boolean. Whether the variables are complex or real.
         """
+        if cplx:
+            self.set_same([i + "r" for i in name_list])
+            self.set_same([i + "i" for i in name_list])
+            return
         tmp_list = []
         head_list = []
         for name in name_list:
@@ -1506,7 +1510,8 @@ class Variable(object):
             else:
                 self.vm.set_fix(self.name, unfix=True)
         else:
-            raise Exception("Only shape==() var supports 'freed' method.")
+            for i in self.variables:
+                self.vm.set_fix(i, unfix=True)
 
     def _set_fix_idx(self, fix_idx=None, fix_vals=None, unfix=False):
         if fix_idx is None:

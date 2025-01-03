@@ -24,6 +24,7 @@ def register_amp_model(name=None, f=None):
             my_name = g.__name__
         else:
             my_name = name
+        g.model_name = name
         config = get_config(AMP_MODEL)
         if my_name in config:
             warnings.warn("Override mode {}".format(my_name))

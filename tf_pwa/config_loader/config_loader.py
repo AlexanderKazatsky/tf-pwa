@@ -175,8 +175,8 @@ class ConfigLoader(BaseConfig):
         self.save_cached_data(dict(zip(datafile, [data, phsp, bg, inmc])))
         return data, phsp, bg, inmc
 
-    def get_data_index(self, sub, name):
-        return self.plot_params.get_data_index(sub, name)
+    def get_data_index(self, sub, name, *extra):
+        return self.plot_params.get_data_index(sub, name, *extra)
 
     def get_phsp_noeff(self):
         if "phsp_noeff" in self.config["data"]:
@@ -1244,14 +1244,14 @@ class PlotParams(dict):
         for i in self.get_extra_vars():
             self.params.append(i)
 
-    def get_data_index(self, sub, name):
+    def get_data_index(self, sub, name, *extra):
         dec = self.decay_struct.topology_structure()
         if sub == "mass":
             p = get_particle(name)
-            return "particle", self.re_map.get(p, p), "m"
+            return "particle", self.re_map.get(p, p), "m", *extra
         if sub == "p":
             p = get_particle(name)
-            return "particle", self.re_map.get(p, p), "p"
+            return "particle", self.re_map.get(p, p), "p", *extra
         if sub == "angle":
             name_i = name.split("/")
             de_i = self.decay_struct.get_decay_chain(name_i)
@@ -1268,6 +1268,7 @@ class PlotParams(dict):
                 self.re_map.get(de, de),
                 self.re_map.get(p, p),
                 "ang",
+                *extra,
             )
         if sub == "aligned_angle":
             name_i = name.split("/")
@@ -1285,10 +1286,11 @@ class PlotParams(dict):
                 self.re_map.get(de, de),
                 self.re_map.get(p, p),
                 "aligned_angle",
+                *extra,
             )
         if sub == "index":
             name_i = name.split("/")
-            return name_i
+            return name_i + list(extra)
         raise ValueError("unknown sub {}".format(sub))
 
     def read_plot_config(self, v):

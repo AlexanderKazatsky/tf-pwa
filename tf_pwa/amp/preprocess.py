@@ -8,7 +8,7 @@ from tf_pwa.cal_angle import (
     parity_trans,
 )
 from tf_pwa.config import create_config, get_config, regist_config, temp_config
-from tf_pwa.data import HeavyCall, data_strip
+from tf_pwa.data import HeavyCall, data_index, data_strip
 
 PREPROCESSOR_MODEL = "preprocessor_model"
 regist_config(PREPROCESSOR_MODEL, {})
@@ -185,7 +185,7 @@ class CachedAnglePreProcessor(BasePreProcessor):
         self.no_angle = self.kwargs.get("no_angle", False)
         self.no_p4 = self.kwargs.get("no_p4", False)
 
-    def build_cached(self, x):
+    def __call__(self, x):
         x2 = super().__call__(x)
         for k, v in x["extra"].items():
             x2[k] = v  # {**x2, **x["extra"]}
@@ -232,4 +232,42 @@ class AddDalitzVarPreProcessor(BasePreProcessor):
             "m2": lv.M(pi[1]),
             "m3": lv.M(pi[2]),
         }
+        return x
+
+
+@register_preprocessor("bin_index")
+class AddBinIndexPreProcessor(BasePreProcessor):
+    def __init__(
+        self,
+        *args,
+        binning_variables=None,
+        binning_schemes=None,
+        binning_edges=None,
+        **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.binning_variables = binning_variables
+        self.idx = []
+        for i in self.binning_variables:
+            if isinstance(i, (tuple, list)):
+                self.idx.append(self.root_config.get_data_index(*i))
+            else:
+                raise NotImplementedError
+        self.binning_edges = binning_edges
+        self.binning_schemes = binning_schemes
+        assert len(self.binning_edges) == len(
+            self.binning_schemes
+        ), "require same size of edges and scheme"
+        assert len(self.binning_edges) == len(
+            self.idx
+        ), "require same size of edges and variables"
+
+    def __call__(self, x):
+        v = [data_index(x, i) for i in self.idx]
+        idx = 0
+        for vi, (l, r), n in zip(v, self.binning_edges, self.binning_schemes):
+            ratio = tf.clip_by_value((vi - l) / (r - l), 0.0, 1)
+            n_idx = tf.cast(ratio * n, tf.int32)
+            idx = idx * n + n_idx
+        x["bin_index"] = idx
         return x

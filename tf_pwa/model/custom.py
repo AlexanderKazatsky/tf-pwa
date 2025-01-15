@@ -373,7 +373,7 @@ def create_histogram(binning, weight, n_bins):
 
 
 @register_nll_model("binning_chi2")
-class SimpleBinnningChi2Model(BaseCustomModel):
+class SimpleBinnningChi2Model(BaseCustomModel2):
     required_params = ["n_bins"]
 
     def eval_normal_factors(self, mcdata, weight):

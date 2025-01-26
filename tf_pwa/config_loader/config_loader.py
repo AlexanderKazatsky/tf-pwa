@@ -175,8 +175,8 @@ class ConfigLoader(BaseConfig):
         self.save_cached_data(dict(zip(datafile, [data, phsp, bg, inmc])))
         return data, phsp, bg, inmc
 
-    def get_data_index(self, sub, name):
-        return self.plot_params.get_data_index(sub, name)
+    def get_data_index(self, sub, name, *extra):
+        return self.plot_params.get_data_index(sub, name, *extra)
 
     def get_phsp_noeff(self):
         if "phsp_noeff" in self.config["data"]:
@@ -1244,15 +1244,15 @@ class PlotParams(dict):
         for i in self.get_extra_vars():
             self.params.append(i)
 
-    def get_data_index(self, sub, name):
+    def get_data_index(self, sub, name, *extra):
         dec = self.decay_struct.topology_structure()
         if sub == "mass":
             p = get_particle(name)
-            return "particle", self.re_map.get(p, p), "m"
-        if sub == "p":
+            ret = "particle", self.re_map.get(p, p), "m"
+        elif sub == "p":
             p = get_particle(name)
-            return "particle", self.re_map.get(p, p), "p"
-        if sub == "angle":
+            ret = "particle", self.re_map.get(p, p), "p"
+        elif sub == "angle":
             name_i = name.split("/")
             de_i = self.decay_struct.get_decay_chain(name_i)
             p = get_particle(name_i[-1])
@@ -1262,14 +1262,14 @@ class PlotParams(dict):
                     break
             else:
                 raise IndexError("not found such decay {}".format(name))
-            return (
+            ret = (
                 "decay",
                 de_i.standard_topology(),
                 self.re_map.get(de, de),
                 self.re_map.get(p, p),
                 "ang",
             )
-        if sub == "aligned_angle":
+        elif sub == "aligned_angle":
             name_i = name.split("/")
             de_i = self.decay_struct.get_decay_chain(name_i)
             p = get_particle(name_i[-1])
@@ -1279,17 +1279,19 @@ class PlotParams(dict):
                     break
             else:
                 raise IndexError("not found such decay {}".format(name))
-            return (
+            ret = (
                 "decay",
                 de_i.standard_topology(),
                 self.re_map.get(de, de),
                 self.re_map.get(p, p),
                 "aligned_angle",
             )
-        if sub == "index":
+        elif sub == "index":
             name_i = name.split("/")
-            return name_i
-        raise ValueError("unknown sub {}".format(sub))
+            ret = name_i
+        else:
+            raise ValueError("unknown sub {}".format(sub))
+        return tuple(list(ret) + list(extra))
 
     def read_plot_config(self, v):
         upper_ylim = v.get("upper_ylim", None)

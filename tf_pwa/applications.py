@@ -215,7 +215,7 @@ def force_pos_def_minuit2(inv_he):
     """
     force positive defined of error matrix
 
-        from minuit2 https://github.com/root-project/root/blob/master/math/minuit2/sec/MnPosDef.cxx
+        from minuit2 https://github.com/root-project/root/blob/master/math/minuit2/src/MnPosDef.cxx
     """
     inv_he = np.array(inv_he)
     finfo = np.info(inv_he.dtype)
@@ -234,7 +234,7 @@ def force_pos_def_minuit2(inv_he):
     epspdf = max(1e-6, eps2)
     dg = 0.5 + epspdf - dgmin
     inv_he += np.diag(diag_i * dg)
-    warnings.warn("Added to diagonal of Error Matrix a value {}".format(dgmin))
+    warnings.warn("Added to diagonal of Error Matrix a value {}".format(dg))
     diag2 = np.diagonal(inv_he)
     diag2 = np.where(diag2 < 0, 1, diag2)
     e = 1 / np.sqrt(diag2)

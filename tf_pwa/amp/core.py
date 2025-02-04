@@ -25,7 +25,11 @@ from tf_pwa.data import LazyCall, data_map, data_shape, split_generator
 from tf_pwa.dec_parser import load_dec_file
 from tf_pwa.dfun import get_D_matrix_lambda
 from tf_pwa.einsum import einsum
-from tf_pwa.particle import DEFAULT_DECAY, BaseParticle, Decay
+from tf_pwa.particle import (
+    DEFAULT_DECAY,
+    BaseParticle,
+    Decay,
+)
 from tf_pwa.particle import DecayChain as BaseDecayChain
 from tf_pwa.particle import DecayGroup as BaseDecayGroup
 from tf_pwa.particle import (

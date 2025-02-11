@@ -226,6 +226,8 @@ class SimpleData:
                 value = value[:n_data]
             else:
                 raise NotImplemented
+            if "dtype" in v:
+                value = tf.cast(value, v["dtype"])
             extra_var[v.get("key", k)] = value
         return extra_var
 

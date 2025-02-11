@@ -271,3 +271,24 @@ class AddBinIndexPreProcessor(BasePreProcessor):
             idx = idx * n + n_idx
         x["bin_index"] = idx
         return x
+
+
+@register_preprocessor("add_ref_amp")
+class AddRefAmpPreProcessor(BasePreProcessor):
+    def __init__(
+        self, *args, config=None, params=None, varname="ref_amp", **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        from tf_pwa.config_loader import ConfigLoader
+
+        self.params = {} if params is None else params
+        config = ConfigLoader(config)
+        self.config = config
+        config.set_params(self.params)
+        self.ref_amp = config.get_amplitude()
+        self.varname = varname
+
+    def __call__(self, x):
+        a = self.ref_amp(x)
+        x[self.varname] = a
+        return x

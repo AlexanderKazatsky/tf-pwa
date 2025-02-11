@@ -535,3 +535,26 @@ def test_smear_params(toy_config, fit_result):
         with amp.temp_params(toy_config.gen_smear_params()):
             ret.append(tf.reduce_sum(amp(phsp)).numpy())
     std = np.std(ret)
+
+
+def test_simple_mlp(toy_config):
+    config = ConfigLoader(f"{this_dir}/config_bkg.yml")
+    amp = config.get_amplitude()
+    fcn = config.get_fcn()
+    fcn.nll_grad()
+
+
+def test_add_ref_amp(toy_config):
+    with open(f"{this_dir}/config_cfit.yml") as f:
+        config_dic = yaml.full_load(f)
+    add_ref_amp = {
+        "add_ref_amp": {
+            "config": f"{this_dir}/config_bkg.yml",
+            "params": {},
+            "varname": "bg_value",
+        }
+    }
+    config_dic["preprocessor"] = ["default", add_ref_amp]
+    config = ConfigLoader(config_dic)
+    data = config.get_data("data")[0]
+    assert "bg_value" in data

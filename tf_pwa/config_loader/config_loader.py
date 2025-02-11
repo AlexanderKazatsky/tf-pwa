@@ -364,7 +364,10 @@ class ConfigLoader(BaseConfig):
 
         fix_decay = amp.decay_group.get_decay_chain(fix_total_idx)
         # fix which total factor
-        fix_decay.total.set_fix_idx(fix_idx=0, fix_vals=(fix_total_val, 0.0))
+        if hasattr(fix_decay, "total"):
+            fix_decay.total.set_fix_idx(
+                fix_idx=0, fix_vals=(fix_total_val, 0.0)
+            )
 
         decay_d = dic.get("decay_d", None)
         if decay_d is not None:
@@ -402,8 +405,9 @@ class ConfigLoader(BaseConfig):
             dic = {}
         fix_total_idx = dic.get("fix_chain_idx", 0)
         fix_decay = amp.decay_group.get_decay_chain(fix_total_idx)
-        var = fix_decay.total
-        var.vm.set_fix(var.name + "_0r", unfix=True)
+        if hasattr(fix_decay, "total"):
+            var = fix_decay.total
+            var.vm.set_fix(var.name + "_0r", unfix=True)
 
     def add_particle_constraints(self, amp, dic=None):
         if dic is None:

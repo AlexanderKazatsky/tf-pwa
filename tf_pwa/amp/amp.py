@@ -38,6 +38,11 @@ def register_amp_model(name=None, f=None):
 
 def create_amplitude(decay_group, **kwargs):
     mode = kwargs.get("model", "default")
+    if isinstance(mode, dict):
+        assert len(mode.keys()) == 1
+        key = list(mode.keys())[0]
+        kwargs.update(mode[key])
+        mode = key
     return get_config(AMP_MODEL)[mode](decay_group, **kwargs)
 
 
@@ -372,3 +377,51 @@ class P4DirectlyAmplitudeModel(BaseAmplitudeModel):
     def pdf(self, data):
         new_data = self.cal_angle(data["p4"])
         return self.decay_group.sum_amp({**new_data, **data})
+
+
+@register_amp_model("simple_mlp")
+class MLPModel(BaseAmplitudeModel):
+    def __init__(
+        self, *args, n_hidden=10, n_layers=2, activation="softplus", **kwargs
+    ):
+        if isinstance(n_hidden, int):
+            self.n_hidden = [n_hidden] * (n_layers - 1)
+        else:
+            self.n_hidden = n_hidden
+        self.n_layers = len(self.n_hidden) + 1
+        self.activation = getattr(tf.nn, activation)
+        super().__init__(*args, **kwargs)
+
+    def init_params(self, name=""):
+        self.decay_chain = self.decay_group[0]
+        from tf_pwa.data_trans.helicity_angle import HelicityAngle
+
+        self.ha = HelicityAngle(self.decay_chain)
+        self.top = self.decay_group.top
+        n_decay = len(self.decay_chain)
+        n_finals = n_decay + 1
+        self.Ws = []
+        self.Bs = []
+        for i in range(self.n_layers):
+            if i == 0:
+                n_input = n_decay * 3
+            else:
+                n_input = self.n_hidden[i - 1]
+            if i == self.n_layers - 1:
+                n_output = 1
+            else:
+                n_output = self.n_hidden[i]
+            self.Ws.append(
+                self.top.add_var(f"W{i}", shape=(n_input, n_output))
+            )
+            self.Bs.append(self.top.add_var(f"b{i}", shape=(n_output,)))
+
+    def pdf(self, data):
+        mass, costheta, phi = self.ha.find_variable(data)
+        m = [mass[i.core] for i in self.decay_chain]
+        x = tf.stack(tf.nest.flatten([m, costheta, phi]), axis=-1)
+        for i in range(self.n_layers):
+            w = self.Ws[i]()
+            x = tf.matmul(x, w) + self.Bs[i]()
+            x = self.activation(x)
+        return x[..., 0]

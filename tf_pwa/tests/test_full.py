@@ -554,7 +554,7 @@ def test_add_ref_amp(toy_config):
             "varname": "bg_value",
         }
     }
-    config_dic["preprocessor"] = ["default", add_ref_amp]
+    config_dic["data"]["preprocessor"] = ["default", add_ref_amp]
     config = ConfigLoader(config_dic)
     data = config.get_data("data")[0]
     assert "bg_value" in data

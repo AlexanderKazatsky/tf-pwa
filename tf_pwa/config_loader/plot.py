@@ -1156,6 +1156,11 @@ def _2d_plot_v2(
         title = display
 
         plot_figs = v.get("plot_figs", ["data", "sidbanand", "fitted"])
+        add_dalitz_boundary = v.get("add_dalitz_boundary", [])
+        dalitz_boundary_style = v.get(
+            "dalitz_boundary_style",
+            {"color": "gray", "alpha": 0.5, "zorder": -10},
+        )
         name1 = v.get("xlabel", str(var_x))
         name2 = v.get("ylabel", str(var_y))
 
@@ -1164,6 +1169,13 @@ def _2d_plot_v2(
             plt.ylabel(name2)
             plt.xlim(x_range)
             plt.ylim(y_range)
+            if len(add_dalitz_boundary) == 4:
+                m0, m1, m2, m3 = add_dalitz_boundary
+                s12, s23 = _get_dalitz_boundary(m0, m1, m2, m3)
+                plt.plot(s12, s23, **dalitz_boundary_style)
+            elif len(add_dalitz_boundary) == 2:
+                s12, s23 = get_dalitz_boundary(self, *add_dalitz_boundary)
+                plt.plot(s12, s23, **dalitz_boundary_style)
 
         plt.clf()
         # data
@@ -1301,18 +1313,25 @@ def get_dalitz(config, a, b):
     return m0, m1, m2, m3
 
 
-@ConfigLoader.register_function()
-def get_dalitz_boundary(config, a, b, N=1000):
-    dalitz = get_dalitz(config, a, b)
-    assert dalitz is not None, "not valid daliz plot"
-    m0, m1, m2, m3 = dalitz
-    # print(m0, m1, m2, m3)
+def _get_dalitz_boundary(m0, m1, m2, m3, N=1000):
     from tf_pwa.angle import kine_min_max
 
     s12_min, s12_max = float(m1 + m2), float(m0 - m3)
     s12 = np.linspace(s12_min**2, s12_max**2, N)
     s23_min, s23_max = kine_min_max(s12, *map(float, [m0, m1, m2, m3]))
     return s12, np.stack([s23_min, s23_max], axis=-1)
+
+
+@ConfigLoader.register_function()
+def get_dalitz_boundary(config, a, b, N=1000):
+    dalitz = get_dalitz(config, a, b)
+    assert dalitz is not None, "not valid daliz plot"
+    m0, m1, m2, m3 = dalitz
+    # print(m0, m1, m2, m3)
+    dalitz = get_dalitz(config, a, b)
+    assert dalitz is not None, "not valid daliz plot"
+    m0, m1, m2, m3 = dalitz
+    return _get_dalitz_boundary(m0, m1, m2, m3, N=N)
 
 
 def plot_function_2dpull(

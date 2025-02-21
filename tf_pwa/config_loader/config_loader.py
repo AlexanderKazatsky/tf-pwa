@@ -1230,7 +1230,6 @@ class PlotParams(dict):
     def __init__(self, plot_config, decay_struct):
         self.decay_struct = decay_struct
         self.config = self.add_predined_vars(plot_config)
-        print(self.config)
         self.defaults_config = {}
         self.defaults_config.update(self.config.get("config", {}))
         chain_map = self.decay_struct.get_chains_map()

@@ -1092,7 +1092,7 @@ def _2d_plot_v2(
     color_first=True,
     **kwargs
 ):
-    twodplot = self.config["plot"].get("2Dplot", {})
+    twodplot = self.plot_params.config.get("2Dplot", {})
     new_plot = {}
     for k, v in twodplot.items():
         if "&" in k:
@@ -1172,7 +1172,7 @@ def _2d_plot_v2(
             plt.scatter(data_1[cut], data_2[cut], s=1, alpha=0.8, label="data")
             plot_axis()
             plt.title(title, fontsize="xx-large")
-            plt.savefig(prefix + k + "_data")
+            plt.savefig(prefix + k + "_data." + format)
             plt.clf()
             print("Finish plotting 2D data " + prefix + k)
         if "data_hist" in plot_figs:
@@ -1187,7 +1187,7 @@ def _2d_plot_v2(
             plot_axis()
             plt.title(title, fontsize="xx-large")
             plt.colorbar()
-            plt.savefig(prefix + k + "_data_hist")
+            plt.savefig(prefix + k + "_data_hist." + format)
             plt.clf()
             print("Finish plotting 2D data_hist " + prefix + k)
         # sideband
@@ -1200,7 +1200,7 @@ def _2d_plot_v2(
                 )
                 plot_axis()
                 plt.title(title, fontsize="xx-large")
-                plt.savefig(prefix + k + "_bkg")
+                plt.savefig(prefix + k + "_bkg." + format)
                 plt.clf()
                 print("Finish plotting 2D sideband " + prefix + k)
             else:
@@ -1221,7 +1221,7 @@ def _2d_plot_v2(
                 plot_axis()
                 plt.title(title, fontsize="xx-large")
                 plt.colorbar()
-                plt.savefig(prefix + k + "_bkg_hist")
+                plt.savefig(prefix + k + "_bkg_his." + format)
                 plt.clf()
                 print("Finish plotting 2D sideband histogram " + prefix + k)
             else:
@@ -1240,7 +1240,7 @@ def _2d_plot_v2(
             plot_axis()
             plt.title(title, fontsize="xx-large")
             plt.colorbar()
-            plt.savefig(prefix + k + "_fitted")
+            plt.savefig(prefix + k + "_fitted." + format)
             plt.clf()
             print("Finish plotting 2D fitted " + prefix + k)
         if "pull" in plot_figs:
@@ -1261,7 +1261,7 @@ def _2d_plot_v2(
                 scatter_style=pull_scatter_style,
             )
             plot_axis()
-            plt.savefig(prefix + k + "_pull")
+            plt.savefig(prefix + k + "_pull." + format)
             plt.clf()
             print("Finish plotting 2D pull " + prefix + k)
 

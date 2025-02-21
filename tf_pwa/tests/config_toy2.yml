@@ -40,11 +40,3 @@ constrains:
       model: linear
       k: 1.0
       b: 0.01
-
-plot:
-  config:
-    yscale: log
-  mass:
-    R_BC: { display: "$M_{BC}$" }
-    R_BD: { display: "$M_{BD}$" }
-    R_CD: { display: "$M_{CD}$" }

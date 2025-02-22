@@ -87,9 +87,7 @@ class ConfigLoader(BaseConfig):
         self.bound_dic = {}
         self.gauss_constr_dic = {}
         self.init_value = {}
-        self.plot_params = PlotParams(
-            self.config.get("plot", {}), self.decay_struct
-        )
+        self.plot_params = self.create_plot_params()
         self._neglect_when_set_params = []
         self.inv_he = None
         self._Ngroup = 1
@@ -1143,6 +1141,10 @@ class ConfigLoader(BaseConfig):
             module, dir_name, signatures={"serving_default": call}
         )
 
+    def create_plot_params(self):
+        ret = PlotParams(self.config.get("plot", None), self.decay_struct)
+        return ret
+
 
 def set_prefix_constrains(vm, base, params_dic, self):
     prefix = base.get_variable_name()
@@ -1226,10 +1228,10 @@ def validate_file_name(s):
 
 class PlotParams(dict):
     def __init__(self, plot_config, decay_struct):
-        self.config = plot_config
+        self.decay_struct = decay_struct
+        self.config = self.add_predined_vars(plot_config)
         self.defaults_config = {}
         self.defaults_config.update(self.config.get("config", {}))
-        self.decay_struct = decay_struct
         chain_map = self.decay_struct.get_chains_map()
         self.re_map = {}
         for i in chain_map:
@@ -1247,6 +1249,54 @@ class PlotParams(dict):
             self.params.append(i)
         for i in self.get_extra_vars():
             self.params.append(i)
+
+    def add_predined_vars(self, plot_config):
+        if plot_config is None:
+            plot_config = {"predefined": ["mass", "angle"]}
+        plot_config = plot_config.copy()
+        predefined_config = {
+            "mass": self.create_mass_config,
+            "angle": self.create_angle_config,
+        }
+
+        for i in plot_config.get("predefined", []):
+            if i in predefined_config:
+                plot_config[i] = plot_config.get(i, {})
+                tmp = predefined_config[i]()
+                for k, v in tmp.items():
+                    if k not in plot_config:
+                        plot_config[i][k] = v
+            else:
+                warnings.warn("not found such predefined plot config")
+        return plot_config
+
+    def create_mass_config(self):
+        ret = {}
+        for i in self.decay_struct.resonances:
+            chain = self.decay_struct.get_decay_chain(i)
+            finals = chain.sorted_table()[i]
+            name = "".join([getattr(j, "display", str(j)) for j in finals])
+            ret[str(i)] = {"display": "M(" + name + ")"}
+        return ret
+
+    def create_angle_config(self):
+        ret = {}
+        for idx1, chain in enumerate(self.decay_struct):
+            for idx2, decay in enumerate(chain):
+                part = decay.outs[0]
+                prefix = [str(i) for i in chain.inner if i != part]
+                prefix.append(str(part))
+                name = "/".join(prefix)
+                display_sub = getattr(part, "display", str(part))
+                if display_sub[0] == "$" and display_sub[-1] == "$":
+                    display_sub = display_sub[1:-1]
+                display_phi = f"$\\phi_{{{display_sub}}}^{{{idx1}}}$"
+                display_theta = f"$\\cos\\theta_{{{display_sub}}}^{{{idx1}}}$"
+                ret[name] = {
+                    "alpha": {"display": display_phi},
+                    "cos(beta)": {"display": display_theta},
+                }
+        return ret
 
     def get_data_index(self, sub, name, *extra):
         dec = self.decay_struct.topology_structure()

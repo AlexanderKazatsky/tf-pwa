@@ -33,6 +33,7 @@ class AbsParameterGenerator(metaclass=abc.ABCMeta):
                 continue
             if b is not None and x > b:
                 continue
+            return x
         return x
 
 

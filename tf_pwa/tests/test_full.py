@@ -542,6 +542,7 @@ def test_simple_mlp(toy_config):
     amp = config.get_amplitude()
     fcn = config.get_fcn()
     fcn.nll_grad()
+    amp.partial_weight(config.get_data("phsp")[0])
 
 
 def test_add_ref_amp(toy_config):

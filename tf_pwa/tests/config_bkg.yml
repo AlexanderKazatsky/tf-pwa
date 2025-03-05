@@ -6,6 +6,7 @@ data:
   amp_model:
     simple_mlp:
       n_hidden: [5, 3]
+    constant: {}
 
 decay:
   A:

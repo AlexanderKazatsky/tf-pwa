@@ -39,10 +39,17 @@ def register_amp_model(name=None, f=None):
 def create_amplitude(decay_group, **kwargs):
     mode = kwargs.get("model", "default")
     if isinstance(mode, dict):
-        assert len(mode.keys()) == 1
-        key = list(mode.keys())[0]
-        kwargs.update(mode[key])
-        mode = key
+        if len(mode.keys()) == 1:
+            key = list(mode.keys())[0]
+            kwargs.update(mode[key])
+            mode = key
+        else:
+            ret = {}
+            for k, v in mode.items():
+                kwargs["model"] = {k: v}
+                ret[k] = create_amplitude(decay_group, **kwargs)
+            del kwargs["model"]
+            return ProdPDF(decay_group, pdfs=ret, **kwargs)
     return get_config(AMP_MODEL)[mode](decay_group, **kwargs)
 
 
@@ -425,3 +432,32 @@ class MLPModel(BaseAmplitudeModel):
             x = tf.matmul(x, w) + self.Bs[i]()
             x = self.activation(x)
         return x[..., 0]
+
+
+class ProdPDF(BaseAmplitudeModel):
+    def __init__(self, *args, pdfs, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.pdfs = pdfs
+
+    def partial_weight(self, data, combine=None):
+        pw = [
+            f.partial_weight(data, combine=combine)
+            for k, f in self.pdfs.items()
+        ]
+        sum_pw = []
+        for i in range(len(pw)):
+            tmp = []
+            for j in range(len(pw[0])):
+                tmp.append(pw[i][j])
+            sum_pw.append(tf.reduce_prod(tmp, axis=0))
+        return sum_pw
+
+    def pdf(self, data):
+        y = [f.pdf(data) for k, f in self.pdfs.items()]
+        return tf.reduce_prod(y, axis=0)
+
+
+@register_amp_model("constant")
+class ConstantPDF(BaseAmplitudeModel):
+    def pdf(self, data):
+        return tf.ones_like(data.get_weight())

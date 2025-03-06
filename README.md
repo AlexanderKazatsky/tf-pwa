@@ -35,17 +35,19 @@ When using conda, you don't need to install CUDA for TensorFlow specially.
 1. Get miniconda for python3 from
    [miniconda3](https://docs.conda.io/en/latest/miniconda.html) and install it.
 
-2. Install requirements, we recommed Ampere card users to install with
+2. Install requirements, some users with Ampere card can install with
    `tensorflow_2_6_requirements.txt` (see this
    [technical FAQ](https://tf-pwa.readthedocs.io/en/latest/tensorflow_version.html)).
 
 You can install a tensorflow gpu version in anaconda as
 
 ```
-conda install tensorflow[build="gpu*"]=2.8
+conda install tensorflow
 ```
 
-and then install the rest dependences
+You can choose the version of tensorflow by adding some wildcard character such as `tensorflow[build=cuda*]=2.17`. Build tag with gpu or cuda (such as `cuda124py312ha1f05a4_200`) include  GPU support. You can see all version with `conda search tensorflow`.
+
+And then install the rest dependences
 
 ```
 conda install --file requirements-min.txt

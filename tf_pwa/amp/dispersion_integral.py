@@ -264,7 +264,7 @@ class DispersionIntegralParticle(Particle):
         int_method="tf",
         dyn_int=False,
         s0=0.0,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.mass_range = mass_range

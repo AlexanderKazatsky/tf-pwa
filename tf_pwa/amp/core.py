@@ -374,7 +374,7 @@ class Particle(BaseParticle, AmpBase):
         bw_l=None,
         width_norm=False,
         params_head=None,
-        **kwargs
+        **kwargs,
     ):
         super(Particle, self).__init__(*args, **kwargs)
         self.running_width = running_width
@@ -720,7 +720,7 @@ class HelicityDecay(AmpDecay):
         helicity_inner_full=False,
         ls_selector=None,
         add_covariant_term=False,
-        **kwargs
+        **kwargs,
     ):
         super(HelicityDecay, self).__init__(*args, **kwargs)
         self.has_barrier_factor = has_barrier_factor

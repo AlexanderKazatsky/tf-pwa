@@ -266,7 +266,7 @@ def plot_partial_wave(
     phsp_rec=None,
     cut_function=lambda x: 1,
     plot_function=None,
-    **kwargs
+    **kwargs,
 ):
     """
     plot partial wave plots
@@ -384,7 +384,7 @@ def _get_plot_partial_wave_input(
     partial_waves_function=None,
     extra_plots=None,
     amp=None,
-    **kwargs
+    **kwargs,
 ):
     """
     plot partial wave plots
@@ -593,7 +593,7 @@ def _cal_partial_wave(
     cut_function=lambda x: 1,
     partial_waves_function=None,
     data_index_prefix=(),
-    **kwargs
+    **kwargs,
 ):
     data_dict = {}
     phsp_dict = {}
@@ -747,7 +747,7 @@ def _plot_partial_wave(
     dpi=300,
     force_legend_labels=None,
     labels=None,
-    **kwargs
+    **kwargs,
 ):
     # cmap = plt.get_cmap("jet")
     # N = 10
@@ -1090,7 +1090,7 @@ def _2d_plot_v2(
     nll=None,
     smooth=True,
     color_first=True,
-    **kwargs
+    **kwargs,
 ):
     twodplot = self.plot_params.config.get("2Dplot", {})
     new_plot = {}
@@ -1347,7 +1347,7 @@ def plot_function_2dpull(
     plot_scatter=True,
     scatter_style={"s": 1, "c": "black"},
     cmap="jet",
-    **kwargs
+    **kwargs,
 ):
     import matplotlib as mpl
     import matplotlib.colors as mcolors
@@ -1444,7 +1444,7 @@ def plot_adaptive_2dpull(
     cut_zero=True,
     plot_scatter=True,
     scatter_style={"s": 1, "c": "black"},
-    **kwargs
+    **kwargs,
 ):
     pull_kwargs = {
         "var1": var1,

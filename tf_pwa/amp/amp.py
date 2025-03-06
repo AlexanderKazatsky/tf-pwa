@@ -63,7 +63,7 @@ class AbsPDF:
         use_tf_function=False,
         no_id_cached=False,
         jit_compile=False,
-        **kwargs
+        **kwargs,
     ):
         self.name = name
         with variable_scope(vm) as vm:

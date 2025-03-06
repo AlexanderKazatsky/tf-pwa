@@ -58,7 +58,7 @@ class MixConfig(MultiConfig):
         total_same=False,
         same_data=False,
         no_scale=False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(*args, total_same=total_same, **kwargs)
         self.same_data = same_data

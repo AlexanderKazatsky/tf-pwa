@@ -45,7 +45,7 @@ You can install a tensorflow gpu version in anaconda as
 conda install tensorflow
 ```
 
-You can choose the version of tensorflow by adding some wildcard character such as `tensorflow[build=cuda*]=2.17`. Build tag with gpu or cuda (such as `cuda124py312ha1f05a4_200`) include  GPU support. You can see all version with `conda search tensorflow`.
+You can choose the version of tensorflow by adding some wildcard character such as `tensorflow[build=gpu*]=2.12`. Build tag with gpu or cuda (such as `gpu_py311h65739b5_0`) include  GPU support. You can see all version with `conda search tensorflow`.
 
 And then install the rest dependences
 

@@ -1158,7 +1158,7 @@ class Variable(object):
         vm=None,
         overwrite=True,
         is_cp=False,
-        **kwargs
+        **kwargs,
     ):
         if shape is None:
             shape = []

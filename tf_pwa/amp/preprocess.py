@@ -243,7 +243,7 @@ class AddBinIndexPreProcessor(BasePreProcessor):
         binning_variables=None,
         binning_schemes=None,
         binning_edges=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.binning_variables = binning_variables

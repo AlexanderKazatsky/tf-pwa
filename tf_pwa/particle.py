@@ -77,7 +77,7 @@ class BaseParticle(object):
         width=None,
         id_=None,
         disable=False,
-        **kwargs
+        **kwargs,
     ):
         self.set_name(name, id_)
         self.decay = []  # list of Decay
@@ -286,7 +286,7 @@ class BaseDecay(object):
         p_break=False,
         c_break=True,
         curve_style=None,
-        **kwargs
+        **kwargs,
     ):
         self._name = name
         self.core = core

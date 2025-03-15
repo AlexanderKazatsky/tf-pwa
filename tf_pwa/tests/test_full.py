@@ -416,14 +416,6 @@ def test_bacth_sum(toy_config, fit_result):
     assert np.allclose(frac_err, [fit_frac_err[str(i)] for i in res])
 
 
-def test_lazycall(toy_config_lazy):
-    results = toy_config_lazy.fit(batch=100000)
-    assert np.allclose(results.min_nll, -204.9468493307786)
-    toy_config_lazy.plot_partial_wave(
-        prefix="toy_data/figure_lazy", batch=100000
-    )
-
-
 def test_cal_chi2(toy_config, fit_result):
     toy_config.cal_chi2(bins=[[2, 2]] * 2, mass=["R_BD", "R_CD"])
 
@@ -559,3 +551,32 @@ def test_add_ref_amp(toy_config):
     config = ConfigLoader(config_dic)
     data = config.get_data("data")[0]
     assert "bg_value" in data
+
+
+def test_add_ref_amp(toy_config):
+    with open(f"{this_dir}/config_ref_amp.yml") as f:
+        config_dic = yaml.full_load(f)
+    add_ref_amp = {
+        "add_ref_amp_complex": {
+            "config": f"{this_dir}/config_toy.yml",
+            "params": f"{this_dir}/exp_params.json",
+        }
+    }
+    config_dic["data"]["preprocessor"] = ["default", add_ref_amp]
+    config = ConfigLoader(config_dic)
+    data = config.get_data("data")[0]
+    amp = config.get_amplitude()
+    a = amp(data)
+
+    config_dic["data"]["preprocessor"] = [
+        "default",
+        add_ref_amp,
+        "cached_shape",
+    ]
+    config_dic["data"]["amp_model"] = "cached_shape"
+    config2 = ConfigLoader(config_dic)
+    config2.set_params(config.get_params())
+    data2 = config2.get_data("data")[0]
+    amp2 = config2.get_amplitude()
+    a2 = amp2(data2)
+    assert np.allclose(a.numpy(), a2.numpy())

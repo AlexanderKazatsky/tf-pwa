@@ -73,7 +73,7 @@ class BasePreProcessor(HeavyCall):
         self.root_config = root_config
 
     def __call__(self, x):
-        if "p4" not in x:
+        if "particle" in x:
             return x
         p4 = x["p4"]
         if self.kwargs.get("cp_trans", False):
@@ -90,6 +90,7 @@ class BasePreProcessor(HeavyCall):
             if k in self.kwargs:
                 kwargs[k] = self.kwargs[k]
         ret = cal_angle_from_momentum(p4, self.decay_struct, **kwargs)
+        # TODO: rethink of extra, duplicate with lazy call
         for k, v in x.get("extra", {}).items():
             ret[k] = v
         return ret

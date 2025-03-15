@@ -23,7 +23,7 @@ from tf_pwa.tensorflow_wrapper import tf
 from .core import (
     AmpBase,
     AmpDecay,
-    AmpDecayChain,
+    DecayChain,
     HelicityDecay,
     Particle,
     _ad_hoc,
@@ -837,12 +837,12 @@ class HelicityDecayReduceH0(HelicityDecay):
 
 
 @register_decay_chain("ref_amp")
-class RefAmp(AmpDecayChain):
+class RefAmpDecayChain(DecayChain):
     def __init__(self, *args, varname="ref_amp", **kwargs):
         super().__init__(*args, **kwargs)
         self.varname = varname
-        for i in self.decays:
-            i.ls_list = (self.get_ls_list()[0],)
+        for i in self:
+            i.ls_list = (i.get_ls_list()[0],)
 
     def get_amp(self, *args, **kwargs):
         a = self.get_amp_total()

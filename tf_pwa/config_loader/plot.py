@@ -478,7 +478,7 @@ def _get_plot_partial_wave_input(
         extra = prefix, plot_var_dic, chain_property, nll
         yield all_data, extra
     else:
-        combine_plot = self.config["plot"].get("combine_plot", True)
+        combine_plot = self.config.get("plot", {}).get("combine_plot", True)
         if not combine_plot:
             for dt, mc, sb, w_bkg, i in zip(
                 data, phsp, bg, ws_bkg, range(self._Ngroup)

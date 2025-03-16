@@ -73,6 +73,8 @@ class BasePreProcessor(HeavyCall):
         self.root_config = root_config
 
     def __call__(self, x):
+        if "particle" in x:
+            return x
         p4 = x["p4"]
         if self.kwargs.get("cp_trans", False):
             charges = x.get("extra", {}).get("charge_conjugation", None)
@@ -88,6 +90,9 @@ class BasePreProcessor(HeavyCall):
             if k in self.kwargs:
                 kwargs[k] = self.kwargs[k]
         ret = cal_angle_from_momentum(p4, self.decay_struct, **kwargs)
+        # TODO: rethink of extra, duplicate with lazy call
+        for k, v in x.get("extra", {}).items():
+            ret[k] = v
         return ret
 
 
@@ -119,14 +124,12 @@ class CachedAmpPreProcessor(BasePreProcessor):
     def build_cached(self, x):
         from tf_pwa.experimental.build_amp import build_angle_amp_matrix
 
-        x2 = super().__call__(x)
-        for k, v in x["extra"].items():
-            x2[k] = v  # {**x2, **x["extra"]}
+        # {**x2, **x["extra"]}
         # print(x["c"])
-        idx, c_amp = build_angle_amp_matrix(self.decay_group, x2)
-        x2["cached_amp"] = list_to_tuple(c_amp)
+        idx, c_amp = build_angle_amp_matrix(self.decay_group, x)
+        x["cached_amp"] = list_to_tuple(c_amp)
         # print(x)
-        return x2
+        return x
 
     def strip_data(self, x):
         strip_var = []
@@ -139,11 +142,9 @@ class CachedAmpPreProcessor(BasePreProcessor):
         return x
 
     def __call__(self, x):
-        extra = x["extra"]
+        x = super().__call__(x)
         x = self.build_cached(x)
         x = self.strip_data(x)
-        for k in extra:
-            del x[k]
         return x
 
 
@@ -169,6 +170,7 @@ class CachedShapePreProcessor(CachedAmpPreProcessor):
         hij = []
         for k, i in zip(cached_shape_idx, pv):
             tmp = old_cached_amp[k]
+            # m_dep * angle_amp
             a = tf.reshape(i, [-1, i.shape[1]] + [1] * (len(tmp[0].shape) - 1))
             old_cached_amp[k] = a * tf.stack(tmp, axis=1)
         dec.set_used_chains(used_chains)
@@ -187,8 +189,6 @@ class CachedAnglePreProcessor(BasePreProcessor):
 
     def __call__(self, x):
         x2 = super().__call__(x)
-        for k, v in x["extra"].items():
-            x2[k] = v  # {**x2, **x["extra"]}
         c_amp = self.decay_group.get_factor_angle_amp(x2)
         x2["cached_angle"] = list_to_tuple(c_amp)
         # print(x)
@@ -290,5 +290,14 @@ class AddRefAmpPreProcessor(BasePreProcessor):
 
     def __call__(self, x):
         a = self.ref_amp(x)
+        x[self.varname] = a
+        return x
+
+
+@register_preprocessor("add_ref_amp_complex")
+class AddRefAmpCPreProcessor(AddRefAmpPreProcessor):
+
+    def __call__(self, x):
+        a = self.ref_amp.decay_group.get_amp3(x)
         x[self.varname] = a
         return x

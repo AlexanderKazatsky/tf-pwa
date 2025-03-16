@@ -445,10 +445,10 @@ class ProdPDF(BaseAmplitudeModel):
             for k, f in self.pdfs.items()
         ]
         sum_pw = []
-        for i in range(len(pw)):
+        for i in range(len(pw[0])):
             tmp = []
-            for j in range(len(pw[0])):
-                tmp.append(pw[i][j])
+            for j in range(len(pw)):
+                tmp.append(pw[j][i])
             sum_pw.append(tf.reduce_prod(tmp, axis=0))
         return sum_pw
 

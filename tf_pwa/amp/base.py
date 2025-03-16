@@ -23,6 +23,7 @@ from tf_pwa.tensorflow_wrapper import tf
 from .core import (
     AmpBase,
     AmpDecay,
+    DecayChain,
     HelicityDecay,
     Particle,
     _ad_hoc,
@@ -30,6 +31,7 @@ from .core import (
     get_relative_p2,
     regist_decay,
     regist_particle,
+    register_decay_chain,
 )
 
 
@@ -832,3 +834,26 @@ class HelicityDecayReduceH0(HelicityDecay):
         if self.ls_index is None:
             return tf.stack(gls)
         return tf.stack([gls[k] for k in self.ls_index])
+
+
+@register_decay_chain("ref_amp")
+class RefAmpDecayChain(DecayChain):
+    def __init__(self, *args, varname="ref_amp", **kwargs):
+        super().__init__(*args, **kwargs)
+        self.varname = varname
+        for i in self:
+            i.ls_list = (i.get_ls_list()[0],)
+
+    def get_amp(self, *args, **kwargs):
+        a = self.get_amp_total()
+        f = kwargs["all_data"][self.varname]
+        return a * f
+
+    def get_angle_amp(self, *args, **kwargs):
+        return kwargs["all_data"][self.varname]
+
+    def get_m_dep(self, *args, **kwargs):
+        return [self.get_amp_total()]
+
+    def get_factor_angle_amp(self, *args, **kwargs):
+        return kwargs["all_data"][self.varname]

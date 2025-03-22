@@ -645,7 +645,7 @@ def batch_call(function, data, batch=10000):
 def batch_sum(function, data, batch=10000):
     ret = []
     for i in data_split(data, batch):
-        ret.append(tf.reduce_sum(function(i)))
+        ret.append(function(i))
     tmp = ret[0]
     for i in ret[1:]:
         tmp = tmp + i

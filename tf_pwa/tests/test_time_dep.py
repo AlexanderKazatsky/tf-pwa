@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 
-from tf_pwa.amp.time_dep import fix_cp_params
+from tf_pwa.amp.time_dep import fix_cp_params, fix_cp_params_aabar
 from tf_pwa.config_loader import ConfigLoader
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
@@ -33,6 +33,15 @@ def test_time_dep_cp():
     config2.set_params(config.get_params())
     amp2 = config2.get_amplitude()
 
+    config4 = ConfigLoader(f"{this_dir}/config_time_dep4.yml")
+    fix_cp_params_aabar(
+        config4, ["R_BD", "R_CD", "R_BC"], ["R_BDb", "R_CDb", "R_BCb"]
+    )
+    config4.set_params(
+        {k: v for k, v in config.get_params().items() if "lsb" not in k}
+    )
+    amp4 = config4.get_amplitude()
+
     config_cp = ConfigLoader(f"{this_dir}/config_time_dep3.yml")
     config_cp.set_params(
         {k: v for k, v in config.get_params().items() if "lsb" not in k}
@@ -46,5 +55,6 @@ def test_time_dep_cp():
     del phsp2["cp_swap"]
     b = amp(phsp2).numpy()
     c = amp2(phsp2).numpy()
+    d = amp4(phsp2).numpy()
 
-    assert np.allclose(a, b, c)
+    assert np.allclose(a, b, c, d)

@@ -79,6 +79,84 @@ class TimeDepParamsHelicityDecay(HelicityDecay):
         return ret
 
 
+@register_decay("time_dep_a")
+class TimeDepAHelicityDecay(HelicityDecay):
+    """
+    model with `g_ls` which dependent on the `tag` in data.
+
+    .. math::
+        \\delta_{tag,1} g_{+}(t)  g_{ls} + \\delta_{tag,-1} \\frac{p}{q} g_{-}(t) g_{ls}
+
+    """
+
+    def init_params(self, *args, **kwargs):
+        super().init_params(*args, **kwargs)
+        self.core.delta_m = self.core.add_var("delta_m", value=0.0)
+        self.core.delta_gamma = self.core.add_var("delta_gamma", value=0.0)
+        self.core.gamma = self.core.add_var("gamma", value=1.0)
+        self.core.poq = self.core.add_var(
+            "poq", is_complex=True, fix=True, fix_vals=(1.0, 0.0)
+        )
+
+    def get_ls_amp(self, data, data_p, **kwargs):
+        m_dep = super().get_ls_amp(data, data_p, **kwargs)
+        all_data = kwargs["all_data"]
+        ones = tf.ones_like(data_p[self.core]["m"])
+
+        t = all_data.get("time", 0.0 * ones)
+        gp, gm = cal_gp_gm(
+            t,
+            self.core.gamma(),
+            self.core.delta_m(),
+            self.core.delta_gamma(),
+        )
+        phase = self.core.poq()
+        ret1 = gp[..., None] * m_dep
+        ret2 = 1 / phase * gm[..., None] * m_dep
+        tag = all_data.get("tag", ones)
+        ret = tf.where(tag[..., None] > 0, ret1, ret2)
+        return ret
+
+
+@register_decay("time_dep_abar")
+class TimeDepAbarHelicityDecay(HelicityDecay):
+    """
+    model with `g_ls` (which is `g_lsb` in other model) which dependent on the `tag` in data.
+
+    .. math::
+        \\delta_{tag,1} \\frac{q}{p} g_{-}(t)  g_{ls} + \\delta_{tag,-1}  g_{+}(t) g_{ls}
+
+    """
+
+    def init_params(self, *args, **kwargs):
+        super().init_params(*args, **kwargs)
+        self.core.delta_m = self.core.add_var("delta_m", value=0.0)
+        self.core.delta_gamma = self.core.add_var("delta_gamma", value=0.0)
+        self.core.gamma = self.core.add_var("gamma", value=1.0)
+        self.core.poq = self.core.add_var(
+            "poq", is_complex=True, fix=True, fix_vals=(1.0, 0.0)
+        )
+
+    def get_ls_amp(self, data, data_p, **kwargs):
+        m_dep = super().get_ls_amp(data, data_p, **kwargs)
+        all_data = kwargs["all_data"]
+        ones = tf.ones_like(data_p[self.core]["m"])
+
+        t = all_data.get("time", 0.0 * ones)
+        gp, gm = cal_gp_gm(
+            t,
+            self.core.gamma(),
+            self.core.delta_m(),
+            self.core.delta_gamma(),
+        )
+        phase = self.core.poq()
+        ret1 = phase * gm[..., None] * m_dep
+        ret2 = gp[..., None] * m_dep
+        tag = all_data.get("tag", ones)
+        ret = tf.where(tag[..., None] > 0, ret1, ret2)
+        return ret
+
+
 @register_decay("time_dep_gls")
 class TimeDepHelicityDecay(TimeDepParamsHelicityDecay):
     r"""
@@ -224,3 +302,22 @@ def fix_cp_params(config, r1, r2):
                 dec.g_ls_bar.set_fix_idx(0, fix_vals=-1.0)
             else:
                 dec.g_ls_bar.set_fix_idx(0, fix_vals=1.0)
+
+
+def fix_cp_params_aabar(config, r1, r2):
+    """
+    using the same paramters for A and Abar of `time_dep_a` and `time_dep_abar`
+
+    only work for dalitz plot (all J=0 for initial and final particles)
+
+    """
+    config.get_params()  # asume parameters exist
+    decay_group = config.get_decay()
+    for a, b in zip(r1, r2):
+        chain_a = decay_group.get_decay_chain(a)
+        chain_b = decay_group.get_decay_chain(b)
+        dec1 = [i for i in chain_a if i.core == chain_a.top][0]
+        dec2 = [i for i in chain_b if i.core == chain_b.top][0]
+        chain_a.total.sameas(chain_b.total)
+        for i, j in zip(chain_a, chain_b):
+            i.g_ls.sameas(j.g_ls)

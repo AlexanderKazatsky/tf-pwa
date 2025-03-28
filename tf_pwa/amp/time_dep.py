@@ -270,12 +270,65 @@ class TimeDepParamsAmplitudeModel(BaseAmplitudeModel):
         return tf.where(tag > 0, ret1 * prod1, ret2 * prod2)
 
 
+@register_amp_model("time_dep_params_fs")
+class TimeDepParamsFSAmplitudeModel(TimeDepParamsAmplitudeModel):
+    """
+
+    Flavour specific version of `time_dep_params`.
+
+    """
+
+    def eval_A2_Abar2_time(self, data):
+        A, Abar = self.eval_A_Abar(data)
+
+        top = self.decay_group.top
+        ones = tf.ones((1,), dtype=get_config("dtype"))
+        t = data.get("time", 0.0 * ones)
+        gp, gm = cal_gp_gm(t, top.gamma(), top.delta_m(), top.delta_gamma())
+        n_pad = len(A.shape) - len(t.shape)
+        phase = top.poq()
+        for i in range(n_pad):
+            gp = tf.expand_dims(gp, -1)
+            gm = tf.expand_dims(gm, -1)
+        ret1_a = self.decay_group.sum_with_polarization(gp * A)
+        ret1_abar = self.decay_group.sum_with_polarization(phase * gm * Abar)
+        ret2_a = self.decay_group.sum_with_polarization(1 / phase * gm * A)
+        ret2_abar = self.decay_group.sum_with_polarization(gp * Abar)
+        ret1 = ret1_a + ret1_abar
+        ret2 = ret2_a + ret2_abar
+        return ret1, ret2
+
+    def pdf(self, data):
+        ret1, ret2 = self.eval_A2_Abar2_time(data)
+        ones = tf.ones((1,), dtype=get_config("dtype"))
+        tag = data.get("tag", ones)
+        top = self.decay_group.top
+        prod1 = tf.cast((1 - top.A_prod()), dtype=ret1.dtype)
+        prod2 = tf.cast((1 + top.A_prod()), dtype=ret2.dtype)
+        return tf.where(tag > 0, ret1 * prod1, ret2 * prod2)
+
+
 @register_amp_model("time_dep_cp")
 class TimeDepCpAmplitudeModel(TimeDepParamsAmplitudeModel):
     """
-
     Time dependent amplitude with self-CP related process, the Abar will calculate through :math:`\\bar{A}(p_{+}, p_{-}, p_{0}) = A(-p_{-}, -p_{+}, -p_{0})`
+    """
 
+    def init_params(self, *args, **kwargs):
+        super().init_params(*args, **kwargs)
+        top = self.decay_group.top
+        top.poq.freed()
+
+    def eval_A_Abar(self, data):
+        A = self.decay_group.get_amp(data)
+        Abar = self.decay_group.get_amp(data["cp_swap"])
+        return A, Abar
+
+
+@register_amp_model("time_dep_cp_fs")
+class TimeDepCpFSAmplitudeModel(TimeDepParamsFSAmplitudeModel):
+    """
+    Flavour specific version of `time_dep_cp`.
     """
 
     def init_params(self, *args, **kwargs):

@@ -89,7 +89,7 @@ class SimpleData:
         self.scale_list = self.dic.get("scale_list", ["bg"])
         self.lazy_call = self.dic.get("lazy_call", False)
         self.lazy_file = self.dic.get("lazy_file", False)
-        self.override_extra_var = self.dic.get("override_extra_var", False)
+        self.override_extra_var = self.dic.get("override_extra_var", True)
         cp_trans = self.dic.get("cp_trans", True)
         center_mass = self.dic.get("center_mass", False)
         r_boost = self.dic.get("r_boost", True)

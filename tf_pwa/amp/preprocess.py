@@ -65,14 +65,26 @@ def create_preprocessor(decay_group, **kwargs):
 @register_preprocessor("default")
 class BasePreProcessor(HeavyCall):
     def __init__(
-        self, decay_struct, root_config=None, model="defualt", **kwargs
+        self,
+        decay_struct,
+        root_config=None,
+        model="defualt",
+        data_type=None,
+        **kwargs,
     ):
         self.decay_struct = decay_struct
         self.kwargs = kwargs
         self.model = model
         self.root_config = root_config
+        self.data_type = data_type
 
-    def __call__(self, x):
+    def __call__(self, x, **kwargs):
+        data_type = kwargs.get("data_type", "data")
+        if self.data_type is not None and data_type not in self.data_type:
+            return x
+        return self.call(x, **kwargs)
+
+    def call(self, x, **kwargs):
         if "particle" in x:
             return x
         p4 = x["p4"]
@@ -106,9 +118,9 @@ class SeqPreProcessor(BasePreProcessor):
     def __init__(self, preprocessors):
         self.preprocessors = preprocessors
 
-    def __call__(self, x):
+    def __call__(self, x, **kwargs):
         for f in self.preprocessors:
-            x = f(x)
+            x = f(x, **kwargs)
         return x
 
 
@@ -141,8 +153,8 @@ class CachedAmpPreProcessor(BasePreProcessor):
             x = data_strip(x, strip_var)
         return x
 
-    def __call__(self, x):
-        x = super().__call__(x)
+    def call(self, x, **kwargs):
+        x = super().call(x, **kwargs)
         x = self.build_cached(x)
         x = self.strip_data(x)
         return x
@@ -187,8 +199,8 @@ class CachedAnglePreProcessor(BasePreProcessor):
         self.no_angle = self.kwargs.get("no_angle", False)
         self.no_p4 = self.kwargs.get("no_p4", False)
 
-    def __call__(self, x):
-        x2 = super().__call__(x)
+    def call(self, x, **kwargs):
+        x2 = super().call(x)
         c_amp = self.decay_group.get_factor_angle_amp(x2)
         x2["cached_angle"] = list_to_tuple(c_amp)
         # print(x)
@@ -200,7 +212,7 @@ class CachedAmpPreProcessor(BasePreProcessor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def __call__(self, x):
+    def call(self, x, **kwargs):
         return {"p4": x["p4"]}
 
 
@@ -219,7 +231,7 @@ class AddDalitzVarPreProcessor(BasePreProcessor):
     def find_decay(self, particles):
         return self.decay_struct[0]
 
-    def __call__(self, x):
+    def call(self, x, **kwargs):
         from tf_pwa.angle import LorentzVector as lv
 
         pi = [x["particle"][i]["p"] for i in self.index_particles]
@@ -262,7 +274,7 @@ class AddBinIndexPreProcessor(BasePreProcessor):
             self.idx
         ), "require same size of edges and variables"
 
-    def __call__(self, x):
+    def call(self, x, **kwargs):
         v = [data_index(x, i) for i in self.idx]
         idx = 0
         for vi, (l, r), n in zip(v, self.binning_edges, self.binning_schemes):
@@ -288,7 +300,7 @@ class AddRefAmpPreProcessor(BasePreProcessor):
         self.ref_amp = config.get_amplitude()
         self.varname = varname
 
-    def __call__(self, x):
+    def call(self, x, **kwargs):
         a = self.ref_amp(x)
         x[self.varname] = a
         return x
@@ -296,8 +308,26 @@ class AddRefAmpPreProcessor(BasePreProcessor):
 
 @register_preprocessor("add_ref_amp_complex")
 class AddRefAmpCPreProcessor(AddRefAmpPreProcessor):
-
-    def __call__(self, x):
+    def call(self, x, **kwargs):
         a = self.ref_amp.decay_group.get_amp3(x)
         x[self.varname] = a
+        return x
+
+
+@register_preprocessor("repeat_values")
+class RepeatValuesPreProcessor(BasePreProcessor):
+    def __init__(self, *args, varname="tag", values=[-1, 1], **kwargs):
+        self.varname = varname
+        self.values = values
+        super().__init__(*args, **kwargs)
+
+    def call(self, x, **kwargs):
+
+        from tf_pwa.data import data_repeat, data_shape
+
+        shape = data_shape(x)
+        x = data_repeat(x)
+        vs = tf.cast(tf.stack(self.values), dtype=get_config("dtype"))
+        v = tf.ones([shape, 1], dtype=get_config("dtype")) * vs
+        x[self.varname] = tf.reshape(v, (-1,))
         return x

@@ -42,7 +42,10 @@ def create_amplitude(decay_group, **kwargs):
         if len(mode.keys()) == 1:
             key = list(mode.keys())[0]
             kwargs.update(mode[key])
-            mode = key
+            if "model" in mode[key]:
+                mode = mode[key]["model"]
+            else:
+                mode = key
         else:
             ret = {}
             for k, v in mode.items():

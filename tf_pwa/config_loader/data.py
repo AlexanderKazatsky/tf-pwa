@@ -89,7 +89,7 @@ class SimpleData:
         self.scale_list = self.dic.get("scale_list", ["bg"])
         self.lazy_call = self.dic.get("lazy_call", False)
         self.lazy_file = self.dic.get("lazy_file", False)
-        self.override_extra_var = self.dic.get("override_extra_var", [])
+        self.preprocesser_var = self.dic.get("preprocesser_var", [])
         cp_trans = self.dic.get("cp_trans", True)
         center_mass = self.dic.get("center_mass", False)
         r_boost = self.dic.get("r_boost", True)
@@ -267,7 +267,7 @@ class SimpleData:
             )
         data = self.cal_angle(p4, data_type=data_type, **extra_var)
         for k, v in extra_var.items():
-            if k not in self.override_extra_var:
+            if k not in self.preprocesser_var:
                 data[k] = v
         return data
 

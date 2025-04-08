@@ -66,6 +66,7 @@ def test_repeat_values(toy_config, gen_toy):
         }
     }
     config_dic["data"]["preprocessor"] = ["default", repeat_values]
+    config_dic["data"]["preprocessor_var"] = ["tag"]
     config = ConfigLoader(config_dic)
     data = config.get_data("data")[0]
     assert "tag" in data

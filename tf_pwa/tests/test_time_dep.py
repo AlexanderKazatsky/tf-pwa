@@ -88,3 +88,26 @@ def test_time_dep_fs():
     c = amp2(phsp2).numpy()
 
     assert np.allclose(a, c)
+
+
+def test_time_dep_flavour_tag():
+    with open(f"{this_dir}/config_time_dep_ft.yml") as f:
+        config_dic = yaml.full_load(f)
+    config = ConfigLoader(config_dic)
+    amp = config.get_amplitude()
+    phsp = config.generate_phsp(10)
+
+    a = amp(phsp).numpy()
+
+
+def test_time_dep_flavour_tag_linear():
+    with open(f"{this_dir}/config_time_dep_ft.yml") as f:
+        config_dic = yaml.full_load(f)
+    config_dic["data"]["amp_model"]["flavour_tag_mix"]["flavour_tag"] = {
+        "model": "flavour_tag_linear"
+    }
+    config = ConfigLoader(config_dic)
+    amp = config.get_amplitude()
+    phsp = config.generate_phsp(10)
+
+    a = amp(phsp).numpy()

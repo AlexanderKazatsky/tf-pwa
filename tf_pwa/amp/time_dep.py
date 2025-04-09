@@ -1,6 +1,10 @@
 import tensorflow as tf
 
-from tf_pwa.amp.amp import BaseAmplitudeModel, register_amp_model
+from tf_pwa.amp.amp import (
+    BaseAmplitudeModel,
+    create_amplitude,
+    register_amp_model,
+)
 from tf_pwa.amp.core import HelicityDecay, register_decay, to_complex
 from tf_pwa.config import get_config
 from tf_pwa.data import data_shape
@@ -340,6 +344,132 @@ class TimeDepCpFSAmplitudeModel(TimeDepParamsFSAmplitudeModel):
         A = self.decay_group.get_amp(data)
         Abar = self.decay_group.get_amp(data["cp_swap"])
         return A, Abar
+
+
+@register_amp_model("flavour_tag")
+class FlavourTagPDF(BaseAmplitudeModel):
+    def __init__(
+        self,
+        *args,
+        eta_name="eta",
+        tag_name="tag_value",
+        true_tag="tag",
+        tag_eff=1.0,
+        **kwargs,
+    ):
+        self.eta_name = eta_name
+        self.tag_name = tag_name
+        self.true_tag = true_tag
+        self.tag_eff = tag_eff
+        super().__init__(*args, **kwargs)
+
+    def pdf(self, data):
+        eta = data.get(self.eta_name, 0.0)
+        tag_value = data.get(self.tag_name, 1)
+        true_tag = data.get(self.true_tag, 1)
+        tag1, tag2 = eta, eta
+        return tf.where(
+            true_tag > 0,
+            tf.where(
+                tag_value == 0,
+                tf.ones_like(tag1) * (1 - self.tag_eff),
+                tf.where(tag_value > 0, 1 - tag1, tag1) * self.tag_eff,
+            ),
+            tf.where(
+                tag_value == 0,
+                tf.ones_like(tag2) * (1 - self.tag_eff),
+                tf.where(tag_value > 0, tag2, 1 - tag2) * self.tag_eff,
+            ),
+        )
+
+
+@register_amp_model("flavour_tag_linear")
+class FlavourTagLinearPDF(BaseAmplitudeModel):
+    def __init__(
+        self,
+        *args,
+        eta_name="eta",
+        eta_mean=[0.5, 0.5],
+        tag_name="tag_value",
+        true_tag="tag",
+        tag_eff=[1.0, 1.0],
+        prefix="",
+        **kwargs,
+    ):
+        self.eta_name = eta_name
+        self.tag_name = tag_name
+        self.true_tag = true_tag
+        self.eta_mean = eta_mean
+        self.tag_eff = tag_eff
+        self.prefix = prefix
+        super().__init__(*args, **kwargs)
+
+    def init_params(self, *args, **kwargs):
+        super().init_params(*args, **kwargs)
+        self.top = self.decay_group.top
+        self.top.p0 = self.top.add_var(
+            self.prefix + "p0", value=self.eta_mean[0]
+        )
+        self.top.p1 = self.top.add_var(self.prefix + "p1", value=1.0)
+        self.top.p0bar = self.top.add_var(
+            self.prefix + "p0bar", value=self.eta_mean[1]
+        )
+        self.top.p1bar = self.top.add_var(self.prefix + "p1bar", value=1.0)
+
+    def pdf(self, data):
+        eta = data.get(self.eta_name, 0.0)
+        true_tag = data.get(self.true_tag, 1)
+        tag_value = data.get(self.tag_name, true_tag)
+        tag1 = self.top.p0() + self.top.p1() * (eta - self.eta_mean[0])
+        tag2 = self.top.p0bar() + self.top.p1bar() * (eta - self.eta_mean[1])
+        return tf.where(
+            true_tag > 0,
+            tf.where(
+                tag_value == 0,
+                tf.ones_like(tag1) * (1 - self.tag_eff[0]),
+                tf.where(tag_value > 0, 1 - tag1, tag1) * self.tag_eff[0],
+            ),
+            tf.where(
+                tag_value == 0,
+                tf.ones_like(tag2) * (1 - self.tag_eff[1]),
+                tf.where(tag_value > 0, tag2, 1 - tag2) * self.tag_eff[1],
+            ),
+        )
+
+
+@register_amp_model("flavour_tag_mix")
+class TimeDepFTPDF(BaseAmplitudeModel):
+    def __init__(
+        self,
+        decay_group,
+        base_model={"model": "default"},
+        taggers=[{"model": "flavour_tag"}],
+        **kwargs,
+    ):
+        self.base_model = create_amplitude(decay_group, **base_model)
+        self.taggers = [create_amplitude(decay_group, **i) for i in taggers]
+        super().__init__(decay_group, **kwargs)
+
+    def init_params(self, *args, **kwargs):
+        super().init_params(*args, **kwargs)
+        self.base_model.init_params(*args, **kwargs)
+        for tagger in self.taggers:
+            tagger.init_params(*args, **kwargs)
+
+    def pdf(self, data):
+        time = data["time"]
+        tag = tf.ones_like(time)
+        old_tag = data.get("tag", None)
+        data["tag"] = tag
+        amp1 = self.base_model(data)
+        ft1 = tf.reduce_prod([f(data) for f in self.taggers])
+        data["tag"] = -tag
+        amp2 = self.base_model(data)
+        ft2 = tf.reduce_prod([f(data) for f in self.taggers])
+        del data["tag"]
+        if old_tag is not None:
+            data["tag"] = old_tag
+        return amp1 * ft1 + amp2 * ft2
 
 
 def fix_cp_params(config, r1, r2):

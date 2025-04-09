@@ -393,6 +393,7 @@ class FlavourTagLinearPDF(BaseAmplitudeModel):
         tag_name="tag_value",
         true_tag="tag",
         tag_eff=[1.0, 1.0],
+        prefix="",
         **kwargs,
     ):
         self.eta_name = eta_name
@@ -400,15 +401,20 @@ class FlavourTagLinearPDF(BaseAmplitudeModel):
         self.true_tag = true_tag
         self.eta_mean = eta_mean
         self.tag_eff = tag_eff
+        self.prefix = prefix
         super().__init__(*args, **kwargs)
 
     def init_params(self, *args, **kwargs):
         super().init_params(*args, **kwargs)
         self.top = self.decay_group.top
-        self.top.p0 = self.top.add_var("p0", value=self.eta_mean[0])
-        self.top.p1 = self.top.add_var("p1", value=1.0)
-        self.top.p0bar = self.top.add_var("p0bar", value=self.eta_mean[1])
-        self.top.p1bar = self.top.add_var("p1bar", value=1.0)
+        self.top.p0 = self.top.add_var(
+            self.prefix + "p0", value=self.eta_mean[0]
+        )
+        self.top.p1 = self.top.add_var(self.prefix + "p1", value=1.0)
+        self.top.p0bar = self.top.add_var(
+            self.prefix + "p0bar", value=self.eta_mean[1]
+        )
+        self.top.p1bar = self.top.add_var(self.prefix + "p1bar", value=1.0)
 
     def pdf(self, data):
         eta = data.get(self.eta_name, 0.0)
@@ -437,28 +443,32 @@ class TimeDepFTPDF(BaseAmplitudeModel):
         self,
         decay_group,
         base_model={"model": "default"},
-        flavour_tag={"model": "flavour_tag"},
+        taggers=[{"model": "flavour_tag"}],
         **kwargs,
     ):
         self.base_model = create_amplitude(decay_group, **base_model)
-        self.flavour_tag = create_amplitude(decay_group, **flavour_tag)
+        self.taggers = [create_amplitude(decay_group, **i) for i in taggers]
         super().__init__(decay_group, **kwargs)
 
     def init_params(self, *args, **kwargs):
         super().init_params(*args, **kwargs)
         self.base_model.init_params(*args, **kwargs)
-        self.flavour_tag.init_params(*args, **kwargs)
+        for tagger in self.taggers:
+            tagger.init_params(*args, **kwargs)
 
     def pdf(self, data):
         time = data["time"]
         tag = tf.ones_like(time)
+        old_tag = data.get("tag", None)
         data["tag"] = tag
         amp1 = self.base_model(data)
-        ft1 = self.flavour_tag(data)
+        ft1 = tf.reduce_prod([f(data) for f in self.taggers])
         data["tag"] = -tag
         amp2 = self.base_model(data)
-        ft2 = self.flavour_tag(data)
+        ft2 = tf.reduce_prod([f(data) for f in self.taggers])
         del data["tag"]
+        if old_tag is not None:
+            data["tag"] = old_tag
         return amp1 * ft1 + amp2 * ft2
 
 

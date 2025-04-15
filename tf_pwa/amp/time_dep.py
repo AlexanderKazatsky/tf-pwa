@@ -360,7 +360,7 @@ class TimeDepCpFSAmplitudeModel(TimeDepParamsFSAmplitudeModel):
 class TimeDepParamsConvAmplitudeModel(TimeDepParamsAmplitudeModel):
     """
     .. math::
-        |A(t)| = \\int | A(\\tau)|^2 \\frac{1}{\\sqrt{2\\pi}\\sigma} \\exp(-\\frac{(t-\\tau)}{2\\sigma^2}) d\\tau
+        |A(t)| = \\int | A(\\tau)|^2 \\frac{1}{\\sqrt{2\\pi}\\sigma} \\exp(-\\frac{(t-\\tau)^2}{2\\sigma^2}) d\\tau
 
     Convolve with a Gaussian function
 
@@ -637,17 +637,12 @@ def fix_cp_params_aabar(config, r1, r2):
             i.g_ls.sameas(j.g_ls)
 
 
-@tf.numpy_function(Tout=tf.complex128)
-def erfc_op(z):
-    from scipy.special import erfc as erfc_scipy
-
-    return erfc_scipy(z)
-
-
 @tf.custom_gradient
 def erfc_xy(x, y):
     z = tf.complex(x, y)
-    e = erfc_op(z)
+    from scipy.special import erfc as erfc_scipy
+
+    e = tf.numpy_function(erfc_scipy, z, Tout=tf.complex128)
     rx, ry = tf.math.real(e), tf.math.imag(e)
 
     def grad(gx, gy):
@@ -669,7 +664,7 @@ def conv_exp_gaussian(t, sigma, a):
 
     .. math::
         \\int_{0}^{\\infty} \\exp(-a\\tau) \\frac{1}{\\sqrt{2\\pi}\\sigma} \\exp(-\\frac{(t - \\tau)^2}{2\\sigma^2}) d \\tau
-        = \\frac{\\exp[- ax + \\frac{a^2\\sigma^2}{2}]}{2}\\text{erfc}\\frac{a\\sigma^2 - x}{\sqrt{2}s}
+        = \\frac{\\exp[- ax + \\frac{a^2\\sigma^2}{2}]}{2}\\text{erfc}\\frac{a\\sigma^2 - x}{\\sqrt{2}\\sigma}
 
     """
     s2 = math.sqrt(2)
@@ -684,8 +679,8 @@ def conv_exp_gaussian_complex(t, sigma, a, b):
 
     .. math::
         \\int_{0}^{\\infty} \\exp(-(a+bi) \\tau) \\frac{1}{\\sqrt{2\\pi}\\sigma} \\exp(-\\frac{(t - \\tau)^2}{2\\sigma^2}) d \\tau
-        = \\frac{\\exp[- (a+bi)x + \\frac{(a+bi)^2 \\sigma^2}{2}]}{2}\\text{erfc}\\frac{(a+bi)\\sigma^2 - x}{\sqrt{2}s}
-        = \\exp(-\\frac{x^2}{2s^2}) \\text{Faddeeva}(i\\frac{(a+bi)\\sigma^2 - x}{\sqrt{2}s} )
+        = \\frac{\\exp[- (a+bi)x + \\frac{(a+bi)^2 \\sigma^2}{2}]}{2}\\text{erfc}\\frac{(a+bi)\\sigma^2 - x}{\\sqrt{2}\\sigma}
+        = \\exp(-\\frac{x^2}{2s^2}) \\text{Faddeeva}(i\\frac{(a+bi)\\sigma^2 - x}{\\sqrt{2}\\sigma} )
 
 
     """

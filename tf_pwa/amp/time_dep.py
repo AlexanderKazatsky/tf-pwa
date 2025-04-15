@@ -642,7 +642,7 @@ def erfc_xy(x, y):
     z = tf.complex(x, y)
     from scipy.special import erfc as erfc_scipy
 
-    e = tf.numpy_function(erfc_scipy, z, Tout=tf.complex128)
+    e = tf.numpy_function(erfc_scipy, (z,), Tout=tf.complex128)
     rx, ry = tf.math.real(e), tf.math.imag(e)
 
     def grad(gx, gy):

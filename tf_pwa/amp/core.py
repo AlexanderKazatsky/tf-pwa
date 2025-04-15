@@ -1424,7 +1424,7 @@ class DecayChain(AmpDecayChain):
             for i in self:
                 for idxj, j in enumerate(i.outs):
                     if j.J != 0:
-                        ang = data_c[i][j].get("aligned_angle", None)
+                        ang = data_c[i].get(j, {}).get("aligned_angle", None)
                         if ang is None and not getattr(
                             i, "helicity_inner_full", False
                         ):
@@ -1726,7 +1726,7 @@ class DecayGroup(BaseDecayGroup, AmpBase):
                     raise KeyError("not found {}".format(chain_topo))
                 data_c = rename_data_dict(data_decay_i, chains[decay_chain])
                 data_p = rename_data_dict(data_particle, chains[decay_chain])
-                # print("$$$$$",data_c)
+                # print("$$$$$",data_c, data_decay_i)
                 # print("$$$$$",data_p)
                 amp = decay_chain.get_amp(
                     data_c, data_p, base_map=base_map, all_data=data
@@ -1939,22 +1939,27 @@ class DecayGroup(BaseDecayGroup, AmpBase):
         sum_A = tf.reduce_sum(amp2s, idx)
         return sum_A
 
-    def sum_with_polarization(self, amp):
+    def sum_with_polarization(self, amp, ampbar=None):
+        if ampbar is None:
+            ampbar = amp
+        else:
+            ampbar = ampbar
         if self.polarization != "none":
             # (i, la, lb lc ld ...)
             amp = tf.reshape(amp, (amp.shape[0], len(self.top.spins), -1))
             na, nl = amp.shape[1], amp.shape[2]
             rho = self.get_density_matrix()
             amp = tf.reshape(amp, (-1, na, 1, nl))
+
             # (i, la, lb lc ld ...)
-            amp_c = tf.reshape(tf.math.conj(amp), (-1, na, nl))
+            amp_c = tf.reshape(tf.math.conj(ampbar), (-1, na, nl))
             sum_A = (
                 tf.reduce_sum(amp * tf.reshape(rho, (na, na, 1)), axis=1)
                 * amp_c
             )
             return tf.reduce_sum(tf.math.real(sum_A), axis=[1, 2])
         else:
-            amp2s = tf.math.real(amp * tf.math.conj(amp))
+            amp2s = tf.math.real(amp * tf.math.conj(ampbar))
             idx = list(range(1, len(amp2s.shape)))
             sum_A = tf.reduce_sum(amp2s, idx)
             return sum_A

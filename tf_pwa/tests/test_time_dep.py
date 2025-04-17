@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+import tensorflow as tf
 import yaml
 
 from tf_pwa.amp.time_dep import fix_cp_params, fix_cp_params_aabar
@@ -120,6 +121,27 @@ def test_time_dep_fs():
     c = amp2(phsp2).numpy()
 
     assert np.allclose(a, c)
+
+    var_name = ["A_delta_m", "A_delta_gamma"]
+    var = [amp_cp.vm.variables[i] for i in var_name]
+
+    def f():
+        y = tf.reduce_sum(amp_cp(phsp))
+        return y
+
+    with tf.GradientTape() as tape:
+        y = f()
+    grad = tape.gradient(y, var)
+
+    params = amp_cp.get_params()
+    delta = 0.001
+    for idx, name in enumerate(var_name):
+        amp_cp.set_params({"name": params[name] + delta})
+        y1 = f()
+        amp_cp.set_params({"name": params[name] - delta})
+        y2 = f()
+        assert abs((y1 - y2) / delta / 2 - grad[idx]) < 1e-4
+        amp_cp.set_params(params)
 
 
 def test_time_dep_flavour_tag():

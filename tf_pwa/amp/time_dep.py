@@ -366,6 +366,10 @@ class TimeDepParamsConvAmplitudeModel(TimeDepParamsAmplitudeModel):
 
     """
 
+    def __init__(self, *args, t_min=0.0, **kwargs):
+        self.t_min = t_min
+        super().__init__(*args, **kwargs)
+
     def pdf(self, data):
         A, Abar = self.eval_A_Abar(data)
         top = self.decay_group.top
@@ -374,26 +378,18 @@ class TimeDepParamsConvAmplitudeModel(TimeDepParamsAmplitudeModel):
         ones = tf.ones((1,), dtype=get_config("dtype"))
         t = data.get("time", 0.0 * ones)
         sigma = data.get("time_sigma", 0.0 * ones)
-        exp_pgamma_t = (
-            conv_exp_gaussian(t, sigma, top.gamma() - top.delta_gamma() / 2)
-            / 2
-        )  # -(Gamma - Delta\Gamma/2)
-        exp_mgamma_t = (
-            conv_exp_gaussian(t, sigma, top.gamma() + top.delta_gamma() / 2)
-            / 2
-        )  # -(Gamma + Delta\Gamma/2)
-        exp_dm_t = (
-            conv_exp_gaussian_complex(t, sigma, top.gamma(), -top.delta_m())
-            / 2
-        )  # -(Gamma - i Delta\m/2)
-
-        # exp_pgamma_t_max = conv_exp_gaussian(tf.ones_like(t)*15, sigma, top.gamma() - top.delta_gamma()/2)/2 # -(Gamma - Delta\Gamma/2)
-        # exp_mgamma_t_max = conv_exp_gaussian(tf.ones_like(t)*15, sigma, top.gamma() + top.delta_gamma()/2)/2  # -(Gamma + Delta\Gamma/2)
-        # exp_dm_t_max = conv_exp_gaussian_complex(tf.ones_like(t)*15, sigma, top.gamma(), top.delta_m())/2 # -(Gamma + i Delta\m/2)
-        #
-        # exp_pgamma_t = -exp_pgamma_t_max + exp_pgamma_t
-        # exp_mgamma_t = -exp_mgamma_t_max + exp_mgamma_t
-        # exp_dm_t = -exp_dm_t_max + exp_dm_t
+        # -(Gamma - Delta\Gamma/2)
+        exp_pgamma_t = conv_exp_gaussian(
+            t, sigma, top.gamma() - top.delta_gamma() / 2, self.t_min
+        )
+        # -(Gamma + Delta\Gamma/2)
+        exp_mgamma_t = conv_exp_gaussian(
+            t, sigma, top.gamma() + top.delta_gamma() / 2, self.t_min
+        )
+        # -(Gamma + Delta\Gamma/2)
+        exp_dm_t = conv_exp_gaussian_complex(
+            t, sigma, top.gamma(), -top.delta_m(), self.t_min
+        )
 
         cosht = (exp_pgamma_t + exp_mgamma_t) / 2
         sinht = (exp_pgamma_t - exp_mgamma_t) / 2
@@ -406,12 +402,15 @@ class TimeDepParamsConvAmplitudeModel(TimeDepParamsAmplitudeModel):
         Asum = A2 + Abar2
         Asub = A2 - Abar2
         ReA = self.decay_group.sum_with_polarization(phase * Abar, A)
-        ImA = self.decay_group.sum_with_polarization(phase * Abar, 1j * A)
+        ImA = self.decay_group.sum_with_polarization(
+            phase * Abar, 1j * A
+        )  # conj(jA)=-jA
 
-        # print("A", Asum, Asub, ReA, ImA)
+        ret1 = (
+            Asum * cosht + Asub * cost - 2 * ReA * sinht - 2 * ImA * sint
+        ) / 2
 
-        ret1 = Asum * cosht + Asub * cost - 2 * ReA * sinht - 2 * ImA * sint
-
+        # A <-> Abar ,  q/p <-> p/q = 1/( q/p )
         A2_p = self.decay_group.sum_with_polarization(Abar)
         Abar2_p = self.decay_group.sum_with_polarization(A / phase)
         Asum_p = A2_p + Abar2_p
@@ -419,24 +418,17 @@ class TimeDepParamsConvAmplitudeModel(TimeDepParamsAmplitudeModel):
         ReA_p = self.decay_group.sum_with_polarization(A / phase, Abar)
         ImA_p = self.decay_group.sum_with_polarization(A / phase, 1j * Abar)
 
-        # print("A_p", Asum_p, Asub_p, ReA_p, ImA_p)
-
         ret2 = (
             Asum_p * cosht
             + Asub_p * cost
             - 2 * ReA_p * sinht
             - 2 * ImA_p * sint
-        )
+        ) / 2
 
         tag = data.get("tag", ones)
-        # print(tag)
-        # print(ret1, ret2)
         prod1 = tf.cast((1 - top.A_prod()), dtype=ret1.dtype)
         prod2 = tf.cast((1 + top.A_prod()), dtype=ret2.dtype)
         ret = tf.where(tag > 0, ret1 * prod1, ret2 * prod2)
-        ret.shape
-        # print(ret.shape, A2.shape, Abar2.shape, Asum_p.shape, ReA_p.shape, ret1.shape, ret2.shape)
-        # print(ret)
         return ret
 
 
@@ -659,33 +651,32 @@ def erfc(z):
     return tf.complex(rx, ry)
 
 
-def conv_exp_gaussian(t, sigma, a):
+def conv_exp_gaussian(t, sigma, a, left=0.0):
     """
 
     .. math::
-        \\int_{0}^{\\infty} \\exp(-a\\tau) \\frac{1}{\\sqrt{2\\pi}\\sigma} \\exp(-\\frac{(t - \\tau)^2}{2\\sigma^2}) d \\tau
-        = \\frac{\\exp[- ax + \\frac{a^2\\sigma^2}{2}]}{2}\\text{erfc}\\frac{a\\sigma^2 - x}{\\sqrt{2}\\sigma}
+        \\int_{l}^{\\infty} \\exp(-a\\tau) \\frac{1}{\\sqrt{2\\pi}\\sigma} \\exp(-\\frac{(t - \\tau)^2}{2\\sigma^2}) d \\tau
+        = \\frac{\\exp[- ax + \\frac{a^2\\sigma^2}{2}]}{2}\\text{erfc}\\frac{a\\sigma^2 + l - x}{\\sqrt{2}\\sigma}
 
     """
     s2 = math.sqrt(2)
-    z = a * sigma / s2 - t / sigma / s2
+    z = a * sigma / s2 - (t - left) / sigma / s2
     sigma_sq = sigma * sigma
     e = a * a / 2 * sigma_sq - a * t
     return tf.exp(e) * tf.math.erfc(z) / 2
 
 
-def conv_exp_gaussian_complex(t, sigma, a, b):
+def conv_exp_gaussian_complex(t, sigma, a, b, left=0.0):
     """
 
     .. math::
-        \\int_{0}^{\\infty} \\exp(-(a+bi) \\tau) \\frac{1}{\\sqrt{2\\pi}\\sigma} \\exp(-\\frac{(t - \\tau)^2}{2\\sigma^2}) d \\tau
-        = \\frac{\\exp[- (a+bi)x + \\frac{(a+bi)^2 \\sigma^2}{2}]}{2}\\text{erfc}\\frac{(a+bi)\\sigma^2 - x}{\\sqrt{2}\\sigma}
-        = \\exp(-\\frac{x^2}{2s^2}) \\text{Faddeeva}(i\\frac{(a+bi)\\sigma^2 - x}{\\sqrt{2}\\sigma} )
-
+        \\int_{l}^{\\infty} \\exp(-(a+bi) \\tau) \\frac{1}{\\sqrt{2\\pi}\\sigma} \\exp(-\\frac{(t - \\tau)^2}{2\\sigma^2}) d \\tau
+        = \\frac{\\exp[- (a+bi)x + \\frac{(a+bi)^2 \\sigma^2}{2}]}{2}\\text{erfc}\\frac{(a+bi)\\sigma^2 + l - x}{\\sqrt{2}\\sigma}
+        = \\exp(-\\frac{x^2}{2s^2}) \\text{Faddeeva}(i\\frac{(a+bi)\\sigma^2 + l - x}{\\sqrt{2}\\sigma} )
 
     """
     s2 = math.sqrt(2)
-    z = tf.complex(a * sigma / s2 - t / sigma / s2, b * sigma / s2)
+    z = tf.complex(a * sigma / s2 - (t - left) / sigma / s2, b * sigma / s2)
     sigma_sq = sigma * sigma
     e = tf.complex(
         (a * a - b * b) / 2 * sigma_sq - a * t, a * b * sigma_sq - b * t

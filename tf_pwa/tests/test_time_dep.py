@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+import tensorflow as tf
 import yaml
 
 from tf_pwa.amp.time_dep import fix_cp_params, fix_cp_params_aabar
@@ -61,6 +62,38 @@ def test_time_dep_cp():
     assert np.allclose(a, b, c, d)
 
 
+def test_time_dep_cp_conv():
+
+    with open(f"{this_dir}/config_time_dep2.yml") as f:
+        config_dic = yaml.full_load(f)
+    config_dic["data"]["extra_var"]["time_sigma"] = {"default": 0.01}
+    config_dic["data"]["amp_model"] = "time_dep_params_conv"
+    config2 = ConfigLoader(config_dic)
+    fix_cp_params(config2, ["R_BD"], ["R_CD"])
+    amp2 = config2.get_amplitude()
+
+    with open(f"{this_dir}/config_time_dep3.yml") as f:
+        config_dic = yaml.full_load(f)
+    config_dic["data"]["extra_var"]["time_sigma"] = {"default": 0.01}
+    config_dic["data"]["amp_model"] = "time_dep_cp_conv"
+    config_cp = ConfigLoader(config_dic)
+
+    config_cp.set_params(
+        {k: v for k, v in config2.get_params().items() if "lsb" not in k}
+    )
+
+    amp_cp = config_cp.get_amplitude()
+
+    phsp = config_cp.generate_phsp(10)
+
+    a = amp_cp(phsp).numpy()
+    phsp2 = phsp.copy()
+    del phsp2["cp_swap"]
+    c = amp2(phsp2).numpy()
+
+    assert np.allclose(a, c)
+
+
 def test_time_dep_fs():
     with open(f"{this_dir}/config_time_dep2.yml") as f:
         config_dic = yaml.full_load(f)
@@ -88,6 +121,27 @@ def test_time_dep_fs():
     c = amp2(phsp2).numpy()
 
     assert np.allclose(a, c)
+
+    var_name = ["A_delta_m", "A_delta_gamma"]
+    var = [amp_cp.vm.variables[i] for i in var_name]
+
+    def f():
+        y = tf.reduce_sum(amp_cp(phsp))
+        return y
+
+    with tf.GradientTape() as tape:
+        y = f()
+    grad = tape.gradient(y, var)
+
+    params = amp_cp.get_params()
+    delta = 0.001
+    for idx, name in enumerate(var_name):
+        amp_cp.set_params({"name": params[name] + delta})
+        y1 = f()
+        amp_cp.set_params({"name": params[name] - delta})
+        y2 = f()
+        assert abs((y1 - y2) / delta / 2 - grad[idx]) < 1e-4
+        amp_cp.set_params(params)
 
 
 def test_time_dep_flavour_tag():

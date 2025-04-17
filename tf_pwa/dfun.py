@@ -227,9 +227,9 @@ def get_D_matrix_for_angle(angle, j, cached=True):
     :param cached: Haven't been used???
     :return: Array of the conjugated D-matrices. Same length as the angle data
     """
-    alpha = angle["alpha"]
     beta = angle["beta"]
-    gamma = angle["gamma"]
+    alpha = angle.get("alpha", tf.zeros_like(beta))
+    gamma = angle.get("gamma", tf.zeros_like(beta))
     name = "D_matrix_{}".format(j)
     if cached:
         if name not in angle:

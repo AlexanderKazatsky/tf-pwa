@@ -1,3 +1,5 @@
+import math
+
 import tensorflow as tf
 
 from tf_pwa.amp.amp import (
@@ -255,12 +257,19 @@ class TimeDepParamsAmplitudeModel(BaseAmplitudeModel):
         gp, gm = cal_gp_gm(t, top.gamma(), top.delta_m(), top.delta_gamma())
         n_pad = len(A.shape) - len(t.shape)
         phase = top.poq()
+        shape = A.shape
+        size = 1
         for i in range(n_pad):
-            gp = tf.expand_dims(gp, -1)
-            gm = tf.expand_dims(gm, -1)
+            size *= shape[-i - 1]
+        gp = tf.reshape(gp, (-1, 1))
+        gm = tf.reshape(gm, (-1, 1))
+        A = tf.reshape(A, (-1, size))
+        Abar = tf.reshape(Abar, (-1, size))
         ret1 = gp * A + phase * gm * Abar
         ret2 = 1 / phase * gm * A + gp * Abar
-        return ret1, ret2
+        if shape[0] is None:
+            shape = (-1, *shape[1:])
+        return tf.reshape(ret1, shape), tf.reshape(ret2, shape)
 
     def pdf(self, data):
         A, Abar = self.eval_A_Abar_time(data)
@@ -324,6 +333,7 @@ class TimeDepCpAmplitudeModel(TimeDepParamsAmplitudeModel):
         top.poq.freed()
 
     def eval_A_Abar(self, data):
+
         A = self.decay_group.get_amp(data)
         Abar = self.decay_group.get_amp(data["cp_swap"])
         return A, Abar
@@ -333,6 +343,99 @@ class TimeDepCpAmplitudeModel(TimeDepParamsAmplitudeModel):
 class TimeDepCpFSAmplitudeModel(TimeDepParamsFSAmplitudeModel):
     """
     Flavour specific version of `time_dep_cp`.
+    """
+
+    def init_params(self, *args, **kwargs):
+        super().init_params(*args, **kwargs)
+        top = self.decay_group.top
+        top.poq.freed()
+
+    def eval_A_Abar(self, data):
+        A = self.decay_group.get_amp(data)
+        Abar = self.decay_group.get_amp(data["cp_swap"])
+        return A, Abar
+
+
+@register_amp_model("time_dep_params_conv")
+class TimeDepParamsConvAmplitudeModel(TimeDepParamsAmplitudeModel):
+    """
+    .. math::
+        |A(t)| = \\int | A(\\tau)|^2 \\frac{1}{\\sqrt{2\\pi}\\sigma} \\exp(-\\frac{(t-\\tau)^2}{2\\sigma^2}) d\\tau
+
+    Convolve with a Gaussian function
+
+    """
+
+    def __init__(self, *args, t_min=0.0, **kwargs):
+        self.t_min = t_min
+        super().__init__(*args, **kwargs)
+
+    def pdf(self, data):
+        A, Abar = self.eval_A_Abar(data)
+        top = self.decay_group.top
+        phase = top.poq()
+
+        ones = tf.ones((1,), dtype=get_config("dtype"))
+        t = data.get("time", 0.0 * ones)
+        sigma = data.get("time_sigma", 0.0 * ones)
+        # -(Gamma - Delta\Gamma/2)
+        exp_pgamma_t = conv_exp_gaussian(
+            t, sigma, top.gamma() - top.delta_gamma() / 2, self.t_min
+        )
+        # -(Gamma + Delta\Gamma/2)
+        exp_mgamma_t = conv_exp_gaussian(
+            t, sigma, top.gamma() + top.delta_gamma() / 2, self.t_min
+        )
+        # -(Gamma + Delta\Gamma/2)
+        exp_dm_t = conv_exp_gaussian_complex(
+            t, sigma, top.gamma(), -top.delta_m(), self.t_min
+        )
+
+        cosht = (exp_pgamma_t + exp_mgamma_t) / 2
+        sinht = (exp_pgamma_t - exp_mgamma_t) / 2
+        cost = tf.math.real(exp_dm_t)
+        sint = tf.math.imag(exp_dm_t)
+        # print(cost, sint, cosht, sinht)
+
+        A2 = self.decay_group.sum_with_polarization(A)
+        Abar2 = self.decay_group.sum_with_polarization(phase * Abar)
+        Asum = A2 + Abar2
+        Asub = A2 - Abar2
+        ReA = self.decay_group.sum_with_polarization(phase * Abar, A)
+        ImA = self.decay_group.sum_with_polarization(
+            phase * Abar, 1j * A
+        )  # conj(jA)=-jA
+
+        ret1 = (
+            Asum * cosht + Asub * cost - 2 * ReA * sinht - 2 * ImA * sint
+        ) / 2
+
+        # A <-> Abar ,  q/p <-> p/q = 1/( q/p )
+        A2_p = self.decay_group.sum_with_polarization(Abar)
+        Abar2_p = self.decay_group.sum_with_polarization(A / phase)
+        Asum_p = A2_p + Abar2_p
+        Asub_p = A2_p - Abar2_p
+        ReA_p = self.decay_group.sum_with_polarization(A / phase, Abar)
+        ImA_p = self.decay_group.sum_with_polarization(A / phase, 1j * Abar)
+
+        ret2 = (
+            Asum_p * cosht
+            + Asub_p * cost
+            - 2 * ReA_p * sinht
+            - 2 * ImA_p * sint
+        ) / 2
+
+        tag = data.get("tag", ones)
+        prod1 = tf.cast((1 - top.A_prod()), dtype=ret1.dtype)
+        prod2 = tf.cast((1 + top.A_prod()), dtype=ret2.dtype)
+        ret = tf.where(tag > 0, ret1 * prod1, ret2 * prod2)
+        return ret
+
+
+@register_amp_model("time_dep_cp_conv")
+class TimeDepCpConvAmplitudeModel(TimeDepParamsConvAmplitudeModel):
+    """
+    Time dependent amplitude with self-CP related process, the Abar will calculate through :math:`\\bar{A}(p_{+}, p_{-}, p_{0}) = A(-p_{-}, -p_{+}, -p_{0})`
     """
 
     def init_params(self, *args, **kwargs):
@@ -524,3 +627,58 @@ def fix_cp_params_aabar(config, r1, r2):
         chain_a.total.sameas(chain_b.total)
         for i, j in zip(chain_a, chain_b):
             i.g_ls.sameas(j.g_ls)
+
+
+@tf.custom_gradient
+def erfc_xy(x, y):
+    z = tf.complex(x, y)
+    from scipy.special import erfc as erfc_scipy
+
+    e = tf.numpy_function(erfc_scipy, (z,), Tout=tf.complex128)
+    rx, ry = tf.math.real(e), tf.math.imag(e)
+
+    def grad(gx, gy):
+        gz = -2 / math.sqrt(math.pi) * tf.exp(-z * z)
+        gzx, gzy = tf.math.real(gz), tf.math.imag(gz)
+        return gx * gzx + gy * gzy, gy * gzx - gx * gzy
+
+    return (rx, ry), grad
+
+
+def erfc(z):
+    x, y = tf.math.real(z), tf.math.imag(z)
+    rx, ry = erfc_xy(x, y)
+    return tf.complex(rx, ry)
+
+
+def conv_exp_gaussian(t, sigma, a, left=0.0):
+    """
+
+    .. math::
+        \\int_{l}^{\\infty} \\exp(-a\\tau) \\frac{1}{\\sqrt{2\\pi}\\sigma} \\exp(-\\frac{(t - \\tau)^2}{2\\sigma^2}) d \\tau
+        = \\frac{\\exp[- ax + \\frac{a^2\\sigma^2}{2}]}{2}\\text{erfc}\\frac{a\\sigma^2 + l - x}{\\sqrt{2}\\sigma}
+
+    """
+    s2 = math.sqrt(2)
+    z = a * sigma / s2 - (t - left) / sigma / s2
+    sigma_sq = sigma * sigma
+    e = a * a / 2 * sigma_sq - a * t
+    return tf.exp(e) * tf.math.erfc(z) / 2
+
+
+def conv_exp_gaussian_complex(t, sigma, a, b, left=0.0):
+    """
+
+    .. math::
+        \\int_{l}^{\\infty} \\exp(-(a+bi) \\tau) \\frac{1}{\\sqrt{2\\pi}\\sigma} \\exp(-\\frac{(t - \\tau)^2}{2\\sigma^2}) d \\tau
+        = \\frac{\\exp[- (a+bi)x + \\frac{(a+bi)^2 \\sigma^2}{2}]}{2}\\text{erfc}\\frac{(a+bi)\\sigma^2 + l - x}{\\sqrt{2}\\sigma}
+        = \\exp(-\\frac{x^2}{2s^2}) \\text{Faddeeva}(i\\frac{(a+bi)\\sigma^2 + l - x}{\\sqrt{2}\\sigma} )
+
+    """
+    s2 = math.sqrt(2)
+    z = tf.complex(a * sigma / s2 - (t - left) / sigma / s2, b * sigma / s2)
+    sigma_sq = sigma * sigma
+    e = tf.complex(
+        (a * a - b * b) / 2 * sigma_sq - a * t, a * b * sigma_sq - b * t
+    )
+    return tf.exp(e) * erfc(z) / 2

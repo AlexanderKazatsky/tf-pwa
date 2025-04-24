@@ -565,10 +565,10 @@ class TimeDepFTPDF(BaseAmplitudeModel):
         old_tag = data.get("tag", None)
         data["tag"] = tag
         amp1 = self.base_model(data)
-        ft1 = tf.reduce_prod([f(data) for f in self.taggers])
+        ft1 = tf.reduce_prod([f(data) for f in self.taggers], axis=0)
         data["tag"] = -tag
         amp2 = self.base_model(data)
-        ft2 = tf.reduce_prod([f(data) for f in self.taggers])
+        ft2 = tf.reduce_prod([f(data) for f in self.taggers], axis=0)
         del data["tag"]
         if old_tag is not None:
             data["tag"] = old_tag

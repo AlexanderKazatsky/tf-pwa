@@ -1674,9 +1674,14 @@ class DecayGroup(BaseDecayGroup, AmpBase):
                     self.top.add_var("polarization_py"),
                     self.top.add_var("polarization_pz"),
                 ]
-            if self.top.J == 1:
+            elif self.top.J == 1:
                 self.polarization_vector = self.top.add_var(
                     "polarization_p", shape=(8,)
+                )
+            elif self.top.J > 1:
+                self.polarization_vector = self.top.add_var(
+                    "polarization_p",
+                    shape=((int(self.top.J * 2 + 1e-3) + 1) ** 2 - 1,),
                 )
 
     def get_factor_variable(self):
@@ -2013,6 +2018,14 @@ class DecayGroup(BaseDecayGroup, AmpBase):
             m = gi * p
             E = np.eye(3) + 0j
             return E + tf.reduce_sum(m, axis=-1)
+        elif self.polarization == "vector" and self.top.J >= 1.5:
+            n = int(self.top.J * 2 + 1e-3) + 1
+            p = tf.stack(self.polarization_vector())
+            p = tf.complex(p, tf.zeros_like(p))
+            gi = build_highorder_sun(n)
+            m = gi * p
+            E = np.eye(n) + 0j
+            return E + tf.reduce_sum(m, axis=-1)
         raise NotImplementedError
 
     # @simple_cache_fun
@@ -2146,6 +2159,28 @@ class DecayGroup(BaseDecayGroup, AmpBase):
         a = PhaseSpaceGenerator(top_mass, final_mass)
         data = a.generate(num)
         return dict(zip(self.outs, data))
+
+
+def build_highorder_sun(n):
+    assert n >= 2, "only support n>=2"
+    all_matrix = []
+    for i in range(1, n):
+        for j in range(i):
+            m = np.zeros((n, n)) * 0j
+            m[i, j] = 1
+            m[j, i] = 1
+            all_matrix.append(m)
+            m = np.zeros((n, n)) * 0j
+            m[i, j] = 1j
+            m[j, i] = -1j
+            all_matrix.append(m)
+        m = np.zeros((n, n)) * 0j
+        for j in range(i):
+            m[j, j] = 1
+        m[i, i] = -i
+        m = m * np.sqrt(2 / (i * (i + 1)))
+        all_matrix.append(m)
+    return np.stack(all_matrix, axis=-1)
 
 
 def index_generator(base_map=None):

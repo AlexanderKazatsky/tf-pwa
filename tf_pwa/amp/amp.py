@@ -117,7 +117,7 @@ class AbsPDF:
     def __call__(self, data, cached=False):
         if isinstance(data, LazyCall):
             data = data.eval()
-        if id(data) in self.f_data or self.no_id_cached:
+        if id(data) in self.f_data and not self.no_id_cached:
             if self.cached_available():  # decay_group.not_full:
                 return self.cached_fun(data)
         else:
@@ -366,6 +366,16 @@ class FactorAmplitudeModel(BaseAmplitudeModel):
 
 @register_amp_model("p4_directly")
 class P4DirectlyAmplitudeModel(BaseAmplitudeModel):
+    def __init__(self, *args, base_model="default", **kwargs):
+        new_kwargs = kwargs.copy()
+        new_kwargs["model"] = base_model
+        self.ref_amp = create_amplitude(*args, **new_kwargs)
+        super().__init__(*args, **kwargs)
+
+    def init_params(self, *args, **kwargs):
+        super().init_params(*args, **kwargs)
+        self.ref_amp.init_params(*args, **kwargs)
+
     def cal_angle(self, p4):
         from tf_pwa.cal_angle import cal_angle_from_momentum
 
@@ -386,7 +396,7 @@ class P4DirectlyAmplitudeModel(BaseAmplitudeModel):
 
     def pdf(self, data):
         new_data = self.cal_angle(data["p4"])
-        return self.decay_group.sum_amp({**new_data, **data})
+        return self.ref_amp({**new_data, **data})
 
 
 @register_amp_model("simple_mlp")

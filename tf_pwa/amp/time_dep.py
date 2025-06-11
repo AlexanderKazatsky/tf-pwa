@@ -334,8 +334,8 @@ class TimeDepCpAmplitudeModel(TimeDepParamsAmplitudeModel):
 
     def eval_A_Abar(self, data):
 
-        A = self.decay_group.get_amp(data)
-        Abar = self.decay_group.get_amp(data["cp_swap"])
+        A = self.decay_group.get_amp2(data)
+        Abar = self.decay_group.get_amp2(data["cp_swap"])
         return A, Abar
 
 
@@ -351,8 +351,8 @@ class TimeDepCpFSAmplitudeModel(TimeDepParamsFSAmplitudeModel):
         top.poq.freed()
 
     def eval_A_Abar(self, data):
-        A = self.decay_group.get_amp(data)
-        Abar = self.decay_group.get_amp(data["cp_swap"])
+        A = self.decay_group.get_amp2(data)
+        Abar = self.decay_group.get_amp2(data["cp_swap"])
         return A, Abar
 
 
@@ -444,8 +444,8 @@ class TimeDepCpConvAmplitudeModel(TimeDepParamsConvAmplitudeModel):
         top.poq.freed()
 
     def eval_A_Abar(self, data):
-        A = self.decay_group.get_amp(data)
-        Abar = self.decay_group.get_amp(data["cp_swap"])
+        A = self.decay_group.get_amp2(data)
+        Abar = self.decay_group.get_amp2(data["cp_swap"])
         return A, Abar
 
 

@@ -435,6 +435,11 @@ class Particle(BaseParticle, AmpBase):
     def amp_shape(self):
         return ()
 
+    def get_data_mass(self):
+        if hasattr(self, "data_mass"):
+            return self.data_mass
+        return self.get_mass()
+
     def get_mass(self):
         if self.mass is None:
             warnings.warn(
@@ -2093,9 +2098,9 @@ class DecayGroup(BaseDecayGroup, AmpBase):
         self.add_used_chains(idx_chains)
 
     @contextlib.contextmanager
-    def temp_used_res(self, res):
+    def temp_used_res(self, res, only=False):
         old_idx = self.chains_idx
-        self.set_used_res(res)
+        self.set_used_res(res, only=only)
         yield
         self.chains_idx = old_idx
 

@@ -159,8 +159,8 @@ class BaseAmplitudeModel(AbsPDF):
         self.decay_group.set_used_res(res)
 
     @contextlib.contextmanager
-    def temp_used_res(self, res):
-        with self.decay_group.temp_used_res(res):
+    def temp_used_res(self, res, only=False):
+        with self.decay_group.temp_used_res(res, only=only):
             yield
 
     def set_used_chains(self, used_chains):

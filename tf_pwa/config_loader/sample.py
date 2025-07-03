@@ -293,8 +293,8 @@ def build_phsp_chain(decay_group):
     for i in inner_node[1:]:
         a = a & i
 
-    m0 = decay_group.top.get_mass()
-    mi = [i.get_mass() for i in decay_group.outs]
+    m0 = decay_group.top.get_data_mass()
+    mi = [i.get_data_mass() for i in decay_group.outs]
 
     if any(i is None for i in [m0] + mi):
         raise ValueError("mass required to generate phase space")
@@ -315,7 +315,7 @@ def build_phsp_chain(decay_group):
     nodes = []
     for i in a:
         if get_particle_model_name(decay_map[i]) == "one":
-            nodes.append((i, float(decay_map[i].get_mass())))
+            nodes.append((i, float(decay_map[i].get_data_mass())))
 
     mi = dict(zip(decay_group.outs, mi))
 

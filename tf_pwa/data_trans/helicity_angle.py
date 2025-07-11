@@ -30,7 +30,7 @@ class HelicityAngle1:
         """generate monmentum with M_name = m"""
         m = tf.convert_to_tensor(m, tf.float64)
         ms = [
-            i.core.get_mass() if str(i.core) != str(name) else m
+            i.core.get_data_mass() if str(i.core) != str(name) else m
             for i in self.decay_chain
         ]
         ms.append(self.par[-1].get_mass())
@@ -81,7 +81,9 @@ class HelicityAngle:
                             replace_mass[str(j)], tf.float64
                         )
                     else:
-                        ms[j] = tf.convert_to_tensor(j.get_mass(), tf.float64)
+                        ms[j] = tf.convert_to_tensor(
+                            j.get_data_mass(), tf.float64
+                        )
         return ms
 
     def generate_p_mass(self, name, m, random=False):
@@ -150,13 +152,13 @@ class HelicityAngle:
         high_bound = None
         for i in self.decay_chain:
             if str(i.core) == name:
-                low_bound = sum([j.get_mass() for j in i.outs])
+                low_bound = sum([j.get_data_mass() for j in i.outs])
             if name in [str(j) for j in i.outs]:
                 sum_mass = 0.0
                 for j in i.outs:
                     if str(j) != name:
-                        sum_mass = sum_mass + j.get_mass()
-                high_bound = i.core.get_mass() - sum_mass
+                        sum_mass = sum_mass + j.get_data_mass()
+                high_bound = i.core.get_data_mass() - sum_mass
         return (low_bound, high_bound)
 
     def find_variable(self, dat):

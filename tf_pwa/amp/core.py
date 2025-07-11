@@ -381,6 +381,7 @@ class Particle(BaseParticle, AmpBase):
         self.bw_l = bw_l
         self.width_norm = width_norm
         self.params_head = None
+        self.data_mass = None
 
     def init_params(self):
         self.d = 3.0
@@ -436,7 +437,7 @@ class Particle(BaseParticle, AmpBase):
         return ()
 
     def get_data_mass(self):
-        if hasattr(self, "data_mass"):
+        if self.data_mass is not None:
             return self.data_mass
         return self.get_mass()
 

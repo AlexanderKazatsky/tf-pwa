@@ -203,9 +203,13 @@ def test_cfit(gen_toy):
 
 def test_sdp_gen(gen_toy):
     config = ConfigLoader(f"{this_dir}/config_cfit.yml")
+    top = config.get_decay().top
     config.generate_SDP_p("R_BC", 10, legacy=True)
     config.generate_SDP("R_BC", 10)
     config.generate_SDP_p("R_BC", 10, legacy=False)
+    top.data_mass = top.get_mass() + 0.1
+    data = config.generate_SDP("R_BC", 10)
+    assert np.allclose(data["particle"][top]["m"], top.data_mass)
 
 
 def test_precached(gen_toy):

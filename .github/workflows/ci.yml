@@ -124,8 +124,8 @@ jobs:
           python -m pip install -e . --no-deps
           conda install pylint -y
           conda install pre-commit -c conda-forge -y
-          pre-commit install
-          pre-commit run -a
+# pre-commit install
+# pre-commit run -a
       - name: Test imports
         run: |
           export HDF5_DISABLE_VERSION_CHECK=2

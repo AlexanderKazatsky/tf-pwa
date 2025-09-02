@@ -1612,8 +1612,9 @@ class DecayChain(AmpDecayChain):
                 amp_p.append(i.get_amp(data_p[i], data_c_i, all_data=all_data))
             else:
                 amp_p.append(i.get_amp(data_p[i], all_data=all_data))
-        rs = 1.0
+        rs = tf.constant(1+0j, dtype=tf.complex128)
         for i in amp_p:
+            i = tf.cast(i, tf.complex128)
             rs = rs * i
         # tf.reduce_prod(amp_p, axis=0)
         return rs
